@@ -44,13 +44,12 @@ PARAMS = {
 }
 
 
-def fetch_nba_stats():
+def fetch_nba_stats(season="2023-24"):
     try:
-        # Add a small delay to avoid rate limiting
         time.sleep(1)
-        
-        response = requests.get(URL, headers=HEADERS, params=PARAMS)
-        response.raise_for_status()
+        params = PARAMS.copy()
+        params["Season"] = season
+        response = requests.get(URL, headers=HEADERS, params=params)
 
         data = response.json()
         headers = data["resultSets"][0]["headers"]

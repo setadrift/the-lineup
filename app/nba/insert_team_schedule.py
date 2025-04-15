@@ -35,11 +35,12 @@ PARAMS = {
 }
 
 
-def fetch_team_schedule():
-    print("⏳ Fetching team schedule from NBA stats API...")
+def fetch_team_schedule(season="2023-24"):
+    print(f"⏳ Fetching team schedule for {season} from NBA stats API...")
     time.sleep(1)
-    response = requests.get(URL, headers=HEADERS, params=PARAMS)
-    response.raise_for_status()
+    params = PARAMS.copy()
+    params["Season"] = season
+    response = requests.get(URL, headers=HEADERS, params=params)
 
     data = response.json()
     headers = data["resultSets"][0]["headers"]
@@ -49,11 +50,11 @@ def fetch_team_schedule():
     return df
 
 
-def normalize_team_schedule(df):
+def normalize_team_schedule(df, season="2023-24"):
     df["GAME_DATE"] = pd.to_datetime(df["GAME_DATE"])
     df["home_or_away"] = df["MATCHUP"].apply(lambda x: "H" if "vs." in x else "A")
     df["opponent"] = df["MATCHUP"].apply(lambda x: x.split(" ")[-1])
-    df["season"] = "2023-24"
+    df["season"] = season
     df["is_back_to_back"] = False  # Placeholder — we can backfill later
     df["is_high_volume_day"] = False  # Placeholder — same here
 

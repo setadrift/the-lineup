@@ -1,0 +1,39 @@
+{
+  "project_name": "The Lineup",
+  "project_description": "The Lineup is a modular fantasy basketball draft assistant tool. It is built using Python (FastAPI) and PostgreSQL (Supabase) and supports single-user mock drafting. The MVP focuses on Yahoo 9-cat league logic and uses z-score-based stat analysis. The goal is to provide a real-time, user-friendly alternative to tools like Basketball Monster.",
+  "tech_stack": {
+    "backend": ["Python", "FastAPI", "SQLAlchemy", "Alembic", "PostgreSQL (Supabase)"],
+    "frontend": ["React (Next.js)", "Vercel (planned)"],
+    "tasks": ["Pandas", "NumPy", "Celery", "Redis"],
+    "data": ["NBA Stats API (2023-24 season)", "player_stats", "player_game_stats", "team_schedule", "player_features"]
+  },
+  "design_principles": [
+    "Modular file structure under app/",
+    "Database-first development with SQLAlchemy + Alembic",
+    "One small, testable ETL or function per script",
+    "Code should be readable, efficient, and well-documented",
+    "LLM prompts should reference the .cursorrules context whenever possible"
+  ],
+  "file_structure": {
+    "app/db": "DB connection logic",
+    "app/models": "SQLAlchemy models",
+    "app/nba": "ETL + data ingestion scripts",
+    "app/tasks": "feature engineering, modeling, and future draft logic",
+    "alembic/": "database migrations"
+  },
+  "naming_conventions": {
+    "tables": "snake_case (e.g., player_stats, team_schedule)",
+    "models": "PascalCase (e.g., PlayerStats)",
+    "scripts": "verb_noun.py or clear intent-based naming",
+    "seasons": "format as '2023-24'"
+  },
+  "llm_guidance": {
+    "code_generation": [
+      "Prefer isolated files over monoliths",
+      "Avoid hardcoding paths; use dynamic imports based on project_root",
+      "Validate DB session handling and error recovery",
+      "Avoid duplicating logic across ETL scripts",
+      "Assume all code will be deployed eventually; follow production-grade standards"
+    ]
+  }
+}

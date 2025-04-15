@@ -13,8 +13,8 @@ from app.db.connection import SessionLocal
 from app.models.models import PlayerStats, PlayerFeatures
 
 
-def fetch_player_stats(session: Session):
-    players = session.query(PlayerStats).filter(PlayerStats.season == "2023-24").all()
+def fetch_player_stats(session: Session, season: str):
+    players = session.query(PlayerStats).filter(PlayerStats.season == season).all()
     data = [vars(p) for p in players]
     df = pd.DataFrame(data).drop(columns=["_sa_instance_state"])
     return df
@@ -66,9 +66,18 @@ def insert_features(df: pd.DataFrame):
         session.close()
 
 
+
 if __name__ == "__main__":
     session = SessionLocal()
-    df_stats = fetch_player_stats(session)
-    df_features = compute_z_scores(df_stats)
-    insert_features(df_features)
+    seasons = ["2018-19", "2019-20", "2020-21", "2021-22", "2022-23", "2023-24"]
+
+    for season in seasons:
+        print(f"📈 Generating player features for {season}...")
+        df_stats = fetch_player_stats(session, season)
+        if df_stats.empty:
+            print(f"⚠️ Skipping {season} — no player stats found.")
+            continue
+        df_features = compute_z_scores(df_stats)
+        insert_features(df_features)
+
     session.close()

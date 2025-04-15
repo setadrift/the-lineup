@@ -33,11 +33,12 @@ PARAMS = {
 }
 
 
-def fetch_player_game_logs():
-    print("⏳ Fetching game logs from NBA stats API...")
+def fetch_player_game_logs(season="2023-24"):
+    print(f"⏳ Fetching game logs for {season} from NBA stats API...")
     time.sleep(1)
-    response = requests.get(URL, headers=HEADERS, params=PARAMS)
-    response.raise_for_status()
+    params = PARAMS.copy()
+    params["Season"] = season
+    response = requests.get(URL, headers=HEADERS, params=params)
 
     data = response.json()
     headers = data["resultSets"][0]["headers"]
