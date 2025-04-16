@@ -99,3 +99,14 @@ class PlayerFeatures(Base):
 
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+class PlayerSeasonInfo(Base):
+    __tablename__ = "player_season_info"
+
+    season_info_id = Column(Integer, primary_key=True, index=True)
+    player_id = Column(Integer, index=True, nullable=False)
+    season = Column(String, nullable=False)
+    adp = Column(Float, nullable=True)  # Average draft position
+    injury_notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
