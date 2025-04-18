@@ -1,25 +1,59 @@
 # app/nba/backfill_adp_into_player_season_info.py
 
-import os
-import sys
-import pandas as pd
 from sqlalchemy.orm import Session
 from sqlalchemy import update
-from dotenv import load_dotenv
-from fuzzywuzzy import process
+import os
+import sys
+from thefuzz import process  # fuzzy matching
+import pandas as pd
 
-# Add project root to path
+# Project root path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 sys.path.insert(0, project_root)
 
 from app.db.connection import SessionLocal
 from app.models.models import Player, PlayerSeasonInfo
-from app.nba.load_adp_csv_to_memory import load_adp_data
 
-# Load env
-load_dotenv()
+# Manual name corrections
+manual_name_corrections = {
+    "Doncic, Luka": "Luka Dončić",
+    "Warren, TJ": "T.J. Warren",
+    "Hernangomez, Guillermo": "Willy Hernangómez",
+    "Saric, Dario": "Dario Šarić",
+    "Mills, Patrick": "Patty Mills",
+    "Dozier, P.J.": "P.J. Dozier",
+    "Krejci, Vit": "Vít Krejčí",
+    "Kanter, Enes": "Enes Freedom",
+    "Pasecniks, Anzejs": "Anžejs Pasečņiks",
+    "Claxton, Nicolas": "Nic Claxton",  # 'Nicolas' vs. 'Nic' in most DBs
+    "Cancar, Vlatko": "Vlatko Čančar",
+    "Nembhard, R.J.": "RJ Nembhard",
+    "Vezenkov, Aleksandar": "Sasha Vezenkov",  # Commonly referred to as 'Sasha'
+}
 
-def backfill_adp(season: str = "2022-23", use_fuzzy: bool = True):
+SEASONS = [
+    "2018-19",
+    "2019-20",
+    "2020-21",
+    "2021-22",
+    "2022-23",
+    "2023-24",
+]
+
+def load_adp_data(season: str) -> pd.DataFrame:
+    formatted_season = season.replace("-", "_")
+    filepath = f"app/data/adp/{formatted_season}_adp.csv"
+    df = pd.read_csv(filepath)
+
+    # Drop repeated header rows if any
+    df = df[df["Player"] != "Player"]
+
+    # Keep only relevant columns
+    df = df[["Player", "Rank"]]
+
+    return df
+
+def backfill_adp(season: str, use_fuzzy: bool = True):
     session: Session = SessionLocal()
 
     # Load ADP from csv
@@ -36,12 +70,15 @@ def backfill_adp(season: str = "2022-23", use_fuzzy: bool = True):
         csv_name = row["Player"]
         adp_rank = row["Rank"]
 
+        # Manual fix
+        csv_name_corrected = manual_name_corrections.get(csv_name, csv_name)
+
         # Try exact match first
-        matched_player_id = player_map.get(csv_name)
+        matched_player_id = player_map.get(csv_name_corrected)
 
         if not matched_player_id and use_fuzzy:
-            # If no exact match, fuzzy match
-            best_match, score = process.extractOne(csv_name, player_map.keys())
+            # Fuzzy match fallback
+            best_match, score = process.extractOne(csv_name_corrected, player_map.keys())
             if score > 80:
                 matched_player_id = player_map[best_match]
             else:
@@ -49,7 +86,6 @@ def backfill_adp(season: str = "2022-23", use_fuzzy: bool = True):
                 continue
 
         if matched_player_id:
-            # Update player_season_info
             session.execute(
                 update(PlayerSeasonInfo)
                 .where(PlayerSeasonInfo.player_id == matched_player_id)
@@ -67,4 +103,5 @@ def backfill_adp(season: str = "2022-23", use_fuzzy: bool = True):
         print(f"⚠️ Unmatched players: {unmatched}")
 
 if __name__ == "__main__":
-    backfill_adp(season="2022-23", use_fuzzy=True)
+    for season in SEASONS:
+        backfill_adp(season=season, use_fuzzy=True)
