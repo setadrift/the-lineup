@@ -71,15 +71,138 @@ if draft_type == "Mock Draft":
                 st.rerun()
     
     else:
-        # Mock draft in progress UI
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            st.subheader("Available Players")
-            # TODO: Add player pool table with rankings
-            
-        with col2:
-            st.subheader("Your Team")
-            # TODO: Add your team's roster and stats
+        # --- 1. Draft State Initialization ---
+        if "draft_state_initialized" not in st.session_state:
+            st.session_state.draft_round = 1
+            st.session_state.current_pick_team = 1
+            st.session_state.drafted_players = []
+            st.session_state.team_rosters = {i: [] for i in range(1, num_teams + 1)}
+            st.session_state.user_team_id = draft_position
+            # Serpentine order for the round
+            st.session_state.draft_order = list(range(1, num_teams + 1))
+            st.session_state.draft_state_initialized = True
+            st.session_state.draft_complete = False
+            st.session_state.status_message = ""
+
+        # Query: Top 50 available players for the selected season
+        player_pool_query = """
+        SELECT *
+        FROM (
+            SELECT DISTINCT ON (p.player_id)
+                p.player_id,
+                p.name,
+                p.team,
+                p.position,
+                pf.total_z_score,
+                psi.adp,
+                p.injury_notes
+            FROM players p
+            JOIN player_features pf ON p.player_id = pf.player_id AND pf.season = %s
+            LEFT JOIN player_season_info psi ON p.player_id = psi.player_id AND psi.season = pf.season
+            ORDER BY p.player_id, pf.total_z_score DESC
+        ) sub
+        ORDER BY total_z_score DESC
+        LIMIT 50
+        """
+        player_pool_df = pd.read_sql(player_pool_query, engine, params=(season,))
+
+        # Helper: Get available players (not drafted)
+        def get_available_players():
+            drafted = st.session_state.drafted_players
+            return player_pool_df[~player_pool_df["player_id"].isin(drafted)]
+
+        # Helper: Advance to next pick (serpentine logic)
+        def advance_pick():
+            idx = st.session_state.draft_order.index(st.session_state.current_pick_team)
+            if idx + 1 < len(st.session_state.draft_order):
+                st.session_state.current_pick_team = st.session_state.draft_order[idx + 1]
+            else:
+                # End of round: increment round, reverse order
+                st.session_state.draft_round += 1
+                st.session_state.draft_order = st.session_state.draft_order[::-1]
+                st.session_state.current_pick_team = st.session_state.draft_order[0]
+
+        # Helper: Check if draft is complete
+        def is_draft_complete():
+            # Assume 13 roster spots per team (customize as needed)
+            roster_size = 13
+            return all(len(roster) >= roster_size for roster in st.session_state.team_rosters.values())
+
+        # --- 2. Draft Turn Logic ---
+        if not st.session_state.draft_complete:
+            available_players = get_available_players()
+            current_team = st.session_state.current_pick_team
+            user_team = st.session_state.user_team_id
+            roster_size = 13
+
+            # --- 3. Player Selection Interface ---
+            if current_team == user_team:
+                st.success(f"Your pick! (Round {st.session_state.draft_round}, Pick {current_team})")
+                # Only show undrafted players
+                player_options = available_players[["player_id", "name"]].drop_duplicates()
+                player_dict = dict(zip(player_options["name"], player_options["player_id"]))
+                selected_name = st.selectbox("Select a player to draft:", player_options["name"])
+                if st.button("Draft Player", key=f"draft_{selected_name}"):
+                    pid = player_dict[selected_name]
+                    st.session_state.team_rosters[user_team].append(pid)
+                    st.session_state.drafted_players.append(pid)
+                    st.session_state.status_message = f"You drafted {selected_name}!"
+                    # Advance to next pick
+                    advance_pick()
+                    st.rerun()
+            else:
+                # AI pick: auto-draft top available player by z-score
+                ai_team = current_team
+                ai_pick = available_players.iloc[0]
+                st.session_state.team_rosters[ai_team].append(ai_pick["player_id"])
+                st.session_state.drafted_players.append(ai_pick["player_id"])
+                st.session_state.status_message = f"Team {ai_team} drafted {ai_pick['name']}!"
+                # Advance to next pick
+                advance_pick()
+                st.rerun()
+
+            # --- 4. Roster & Team Displays ---
+            st.info(st.session_state.status_message)
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                st.subheader("Your Team Roster")
+                user_roster_ids = st.session_state.team_rosters[user_team]
+                if user_roster_ids:
+                    user_roster_df = player_pool_df[player_pool_df["player_id"].isin(user_roster_ids)]
+                    st.dataframe(user_roster_df[["name", "team", "position", "total_z_score", "adp", "injury_notes"]], use_container_width=True)
+                else:
+                    st.write("No players drafted yet.")
+            with col2:
+                with st.expander("View All Team Rosters"):
+                    for tid, roster in st.session_state.team_rosters.items():
+                        st.markdown(f"**Team {tid}{' (You)' if tid == user_team else ''}:**")
+                        if roster:
+                            team_df = player_pool_df[player_pool_df["player_id"].isin(roster)]
+                            st.dataframe(team_df[["name", "team", "position", "total_z_score"]], use_container_width=True, hide_index=True)
+                        else:
+                            st.write("No players drafted yet.")
+
+            # --- 5. Draft Progress Sidebar ---
+            st.sidebar.metric("Round", st.session_state.draft_round)
+            st.sidebar.metric("Current Pick", st.session_state.current_pick_team)
+            # Find user's next pick
+            picks_left = [i for i, t in enumerate(st.session_state.draft_order) if t == user_team]
+            if picks_left:
+                st.sidebar.metric("Your Next Pick", picks_left[0] + 1)
+
+            # --- 6. Check for Draft Completion ---
+            if is_draft_complete():
+                st.session_state.draft_complete = True
+                st.experimental_rerun()
+
+        # --- Draft Complete: Show Summary ---
+        else:
+            st.success("Draft complete! Here are the final rosters:")
+            for tid, roster in st.session_state.team_rosters.items():
+                st.markdown(f"**Team {tid}{' (You)' if tid == st.session_state.user_team_id else ''}:**")
+                team_df = player_pool_df[player_pool_df["player_id"].isin(roster)]
+                st.dataframe(team_df[["name", "team", "position", "total_z_score"]], use_container_width=True, hide_index=True)
+            # TODO: Add team comparison/analysis here
 
 elif draft_type == "Live Draft Assistant":
     st.header("Live Draft Assistant Mode")
