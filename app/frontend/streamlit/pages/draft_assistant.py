@@ -84,27 +84,35 @@ if draft_type == "Mock Draft":
             st.session_state.draft_complete = False
             st.session_state.status_message = ""
 
-        # Query: Top 50 available players for the selected season
+        # Query: Get players with season-specific team data
         player_pool_query = """
         SELECT *
         FROM (
             SELECT DISTINCT ON (p.player_id)
                 p.player_id,
                 p.name,
-                p.team,
+                COALESCE(ps.team, p.team) as team,
                 p.position,
                 pf.total_z_score,
                 psi.adp,
                 p.injury_notes
             FROM players p
             JOIN player_features pf ON p.player_id = pf.player_id AND pf.season = %s
+            LEFT JOIN player_stats ps ON p.player_id = ps.player_id AND ps.season = %s
             LEFT JOIN player_season_info psi ON p.player_id = psi.player_id AND psi.season = pf.season
             ORDER BY p.player_id, pf.total_z_score DESC
         ) sub
         ORDER BY total_z_score DESC
-        LIMIT 50
         """
-        player_pool_df = pd.read_sql(player_pool_query, engine, params=(season,))
+        player_pool_df = pd.read_sql(player_pool_query, engine, params=(season, season))
+        player_pool_df = player_pool_df.rename(columns={
+            'name': 'name',
+            'team': 'team', 
+            'position': 'position',
+            'total_z_score': 'total_z_score',
+            'adp': 'adp',
+            'injury_notes': 'injury_notes'
+        })
 
         # Helper: Get available players (not drafted)
         def get_available_players():
@@ -135,6 +143,11 @@ if draft_type == "Mock Draft":
             user_team = st.session_state.user_team_id
             roster_size = 13
 
+            # Check if we have available players
+            if len(available_players) == 0:
+                st.session_state.draft_complete = True
+                st.rerun()
+
             # --- 3. Player Selection Interface ---
             if current_team == user_team:
                 st.success(f"Your pick! (Round {st.session_state.draft_round}, Pick {current_team})")
@@ -153,16 +166,131 @@ if draft_type == "Mock Draft":
             else:
                 # AI pick: auto-draft top available player by z-score
                 ai_team = current_team
-                ai_pick = available_players.iloc[0]
-                st.session_state.team_rosters[ai_team].append(ai_pick["player_id"])
-                st.session_state.drafted_players.append(ai_pick["player_id"])
-                st.session_state.status_message = f"Team {ai_team} drafted {ai_pick['name']}!"
-                # Advance to next pick
-                advance_pick()
-                st.rerun()
+                if len(available_players) > 0:
+                    ai_pick = available_players.iloc[0]
+                    st.session_state.team_rosters[ai_team].append(ai_pick["player_id"])
+                    st.session_state.drafted_players.append(ai_pick["player_id"])
+                    st.session_state.status_message = f"Team {ai_team} drafted {ai_pick['name']}!"
+                    # Advance to next pick
+                    advance_pick()
+                    st.rerun()
+                else:
+                    # No more players available
+                    st.session_state.draft_complete = True
+                    st.rerun()
 
             # --- 4. Roster & Team Displays ---
             st.info(st.session_state.status_message)
+            
+            # Add Available Players Table - Key for draft day decisions
+            st.subheader("🔥 Top Available Players")
+            top_available = available_players.head(20)
+            
+            # Enhanced table with more stats
+            display_df = top_available.rename(columns={
+                'name': 'Player',
+                'team': 'Team',
+                'position': 'Position',
+                'total_z_score': 'Total Z-Score',
+                'adp': 'ADP',
+                'injury_notes': 'Injury Notes'
+            })
+            
+            # Get detailed stats for top available players
+            if len(top_available) > 0:
+                top_player_ids = top_available['player_id'].tolist()
+                detailed_stats_query = """
+                SELECT 
+                    ps.player_id,
+                    ps.points_per_game,
+                    ps.rebounds_per_game,
+                    ps.assists_per_game,
+                    ps.steals_per_game,
+                    ps.blocks_per_game,
+                    ps.turnovers_per_game,
+                    ps.fg_pct,
+                    ps.ft_pct,
+                    ps.three_pm,
+                    ps.games_played,
+                    pf.z_points,
+                    pf.z_rebounds,
+                    pf.z_assists,
+                    pf.z_steals,
+                    pf.z_blocks,
+                    pf.z_turnovers,
+                    pf.z_fg_pct,
+                    pf.z_ft_pct,
+                    pf.z_three_pm
+                FROM player_stats ps
+                JOIN player_features pf ON ps.player_id = pf.player_id AND ps.season = pf.season
+                WHERE ps.season = %s AND ps.player_id = ANY(%s)
+                """
+                stats_df = pd.read_sql(detailed_stats_query, engine, params=(season, top_player_ids))
+                
+                # Merge stats with display data
+                enhanced_df = display_df.merge(stats_df, on='player_id', how='left')
+                
+                # Show basic table first
+                st.dataframe(
+                    display_df[["Player", "Team", "Position", "Total Z-Score", "ADP"]],
+                    use_container_width=True,
+                    hide_index=True
+                )
+                
+                # Add detailed stats expander
+                with st.expander("📊 View Detailed Player Stats & Z-Scores"):
+                    if not stats_df.empty:
+                        # Create a comprehensive stats view
+                        detailed_display = enhanced_df[[
+                            'Player', 'Team', 'Position',
+                            'points_per_game', 'rebounds_per_game', 'assists_per_game',
+                            'steals_per_game', 'blocks_per_game', 'turnovers_per_game',
+                            'fg_pct', 'ft_pct', 'three_pm', 'games_played'
+                        ]].rename(columns={
+                            'points_per_game': 'PPG',
+                            'rebounds_per_game': 'RPG', 
+                            'assists_per_game': 'APG',
+                            'steals_per_game': 'SPG',
+                            'blocks_per_game': 'BPG',
+                            'turnovers_per_game': 'TPG',
+                            'fg_pct': 'FG%',
+                            'ft_pct': 'FT%',
+                            'three_pm': '3PM',
+                            'games_played': 'GP'
+                        })
+                        
+                        st.subheader("Season Averages")
+                        st.dataframe(detailed_display, use_container_width=True, hide_index=True)
+                        
+                        # Z-Score breakdown
+                        z_score_display = enhanced_df[[
+                            'Player', 'Team',
+                            'z_points', 'z_rebounds', 'z_assists',
+                            'z_steals', 'z_blocks', 'z_turnovers',
+                            'z_fg_pct', 'z_ft_pct', 'z_three_pm', 'Total Z-Score'
+                        ]].rename(columns={
+                            'z_points': 'Z-PTS',
+                            'z_rebounds': 'Z-REB',
+                            'z_assists': 'Z-AST',
+                            'z_steals': 'Z-STL',
+                            'z_blocks': 'Z-BLK',
+                            'z_turnovers': 'Z-TO',
+                            'z_fg_pct': 'Z-FG%',
+                            'z_ft_pct': 'Z-FT%',
+                            'z_three_pm': 'Z-3PM'
+                        })
+                        
+                        st.subheader("Z-Score Breakdown by Category")
+                        st.dataframe(z_score_display, use_container_width=True, hide_index=True)
+                    else:
+                        st.write("No detailed stats available for these players.")
+            else:
+                st.dataframe(
+                    display_df[["Player", "Team", "Position", "Total Z-Score", "ADP"]],
+                    use_container_width=True,
+                    hide_index=True
+                )
+
             col1, col2 = st.columns([2, 1])
             with col1:
                 st.subheader("Your Team Roster")
