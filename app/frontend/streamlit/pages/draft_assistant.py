@@ -4,6 +4,7 @@ import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
+from streamlit_extras.colored_header import colored_header
 from streamlit_extras.metric_cards import style_metric_cards
 from streamlit_extras.grid import grid
 
@@ -32,32 +33,24 @@ st.markdown("""
     
     /* Root variables for consistent theming */
     :root {
-        --primary-mocha: #9E7A68;
-        --secondary-cream: #F5F1EB;
-        --accent-terracotta: #C4956C;
-        --accent-sage: #8B9A7A;
-        --accent-charcoal: #4A4A4A;
-        --light-cream: #FDFCFA;
-        --medium-beige: #E8E0D6;
-        --dark-brown: #6B5B4F;
-        --text-dark: #2D2520;
-        --success-green: #7A8B6C;
-        --warning-amber: #D4A574;
-        --error-rust: #B85450;
+        --primary-orange: #FF6B35;
+        --primary-blue: #2E86AB;
+        --secondary-orange: #F7931E;
+        --light-gray: #F8F9FA;
+        --medium-gray: #E9ECEF;
+        --dark-gray: #6C757D;
+        --text-dark: #2E3440;
+        --success-green: #28A745;
+        --warning-yellow: #FFC107;
         --border-radius: 12px;
-        --shadow-light: 0 2px 8px rgba(158, 122, 104, 0.12);
-        --shadow-medium: 0 4px 16px rgba(158, 122, 104, 0.18);
-        --shadow-heavy: 0 8px 32px rgba(158, 122, 104, 0.24);
+        --shadow-light: 0 2px 8px rgba(0,0,0,0.08);
+        --shadow-medium: 0 4px 16px rgba(0,0,0,0.12);
+        --shadow-heavy: 0 8px 32px rgba(0,0,0,0.16);
     }
     
     /* Global font family */
     html, body, [class*="css"] {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    }
-    
-    /* Main app background */
-    .stApp {
-        background: linear-gradient(135deg, var(--light-cream) 0%, var(--secondary-cream) 100%);
     }
     
     /* Main container improvements */
@@ -66,10 +59,6 @@ st.markdown("""
         padding-bottom: 2rem;
         max-width: 1400px;
         margin: 0 auto;
-        background: rgba(255, 255, 255, 0.7);
-        border-radius: var(--border-radius);
-        box-shadow: var(--shadow-light);
-        backdrop-filter: blur(10px);
     }
     
     /* Header styling */
@@ -78,7 +67,7 @@ st.markdown("""
         font-weight: 700;
         font-size: 2.5rem;
         margin-bottom: 0.5rem;
-        background: linear-gradient(135deg, var(--primary-mocha), var(--secondary-cream));
+        background: linear-gradient(135deg, var(--primary-orange), var(--secondary-orange));
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -113,15 +102,15 @@ st.markdown("""
     }
     
     .stButton > button[kind="primary"] {
-        background: linear-gradient(135deg, var(--primary-mocha) 0%, var(--secondary-cream) 100%);
+        background: linear-gradient(135deg, var(--primary-orange) 0%, var(--secondary-orange) 100%);
         color: white;
         border: 2px solid transparent;
     }
     
     .stButton > button[kind="secondary"] {
         background: white;
-        color: var(--primary-mocha);
-        border: 2px solid var(--primary-mocha);
+        color: var(--primary-orange);
+        border: 2px solid var(--primary-orange);
     }
     
     .stButton > button:hover {
@@ -130,11 +119,11 @@ st.markdown("""
     }
     
     .stButton > button[kind="primary"]:hover {
-        background: linear-gradient(135deg, var(--secondary-cream) 0%, var(--primary-mocha) 100%);
+        background: linear-gradient(135deg, var(--secondary-orange) 0%, var(--primary-orange) 100%);
     }
     
     .stButton > button[kind="secondary"]:hover {
-        background: var(--primary-mocha);
+        background: var(--primary-orange);
         color: white;
     }
     
@@ -143,39 +132,35 @@ st.markdown("""
         border-radius: var(--border-radius);
         overflow: hidden;
         box-shadow: var(--shadow-light);
-        border: 1px solid var(--medium-beige);
-        background: white;
+        border: 1px solid var(--medium-gray);
     }
     
     .stDataFrame > div {
         border-radius: var(--border-radius);
-        background: white;
     }
     
     /* Table header styling */
     .stDataFrame thead th {
-        background: linear-gradient(135deg, var(--primary-mocha), var(--accent-terracotta));
-        color: white;
+        background: linear-gradient(135deg, var(--light-gray), var(--medium-gray));
+        color: var(--text-dark);
         font-weight: 600;
         padding: 1rem 0.75rem;
-        border-bottom: 2px solid var(--dark-brown);
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        border-bottom: 2px solid var(--primary-orange);
     }
     
     .stDataFrame tbody td {
         padding: 0.75rem;
-        border-bottom: 1px solid var(--medium-beige);
-        background: white;
+        border-bottom: 1px solid var(--medium-gray);
     }
     
     .stDataFrame tbody tr:hover {
-        background-color: rgba(158, 122, 104, 0.08);
+        background-color: rgba(255, 107, 53, 0.05);
     }
     
     /* Metric cards styling */
     [data-testid="metric-container"] {
         background: white;
-        border: 1px solid var(--medium-beige);
+        border: 1px solid var(--medium-gray);
         padding: 1.5rem;
         border-radius: var(--border-radius);
         box-shadow: var(--shadow-light);
@@ -185,7 +170,6 @@ st.markdown("""
     [data-testid="metric-container"]:hover {
         box-shadow: var(--shadow-medium);
         transform: translateY(-2px);
-        border-color: var(--primary-mocha);
     }
     
     [data-testid="metric-container"] > div {
@@ -195,13 +179,13 @@ st.markdown("""
     [data-testid="metric-container"] [data-testid="metric-value"] {
         font-size: 2rem;
         font-weight: 700;
-        color: var(--primary-mocha);
+        color: var(--primary-orange);
     }
     
     [data-testid="metric-container"] [data-testid="metric-label"] {
         font-size: 0.9rem;
         font-weight: 500;
-        color: var(--dark-brown);
+        color: var(--dark-gray);
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
@@ -215,70 +199,63 @@ st.markdown("""
     }
     
     .stAlert[data-baseweb="notification"] {
-        border-left: 4px solid var(--primary-mocha);
+        border-left: 4px solid var(--primary-orange);
     }
     
     .stSuccess {
-        background: linear-gradient(135deg, rgba(122, 139, 108, 0.1), rgba(122, 139, 108, 0.05));
+        background: linear-gradient(135deg, rgba(40, 167, 69, 0.1), rgba(40, 167, 69, 0.05));
         border-left: 4px solid var(--success-green) !important;
     }
     
     .stInfo {
-        background: linear-gradient(135deg, rgba(216, 191, 175, 0.1), rgba(216, 191, 175, 0.05));
-        border-left: 4px solid var(--primary-mocha) !important;
+        background: linear-gradient(135deg, rgba(255, 107, 53, 0.1), rgba(255, 107, 53, 0.05));
+        border-left: 4px solid var(--primary-orange) !important;
     }
     
     /* Sidebar styling */
     .css-1d391kg {
-        background: linear-gradient(180deg, var(--secondary-cream) 0%, var(--light-cream) 100%);
-        border-right: 2px solid var(--medium-beige);
-    }
-    
-    /* Sidebar container */
-    .css-1d391kg .block-container {
-        background: transparent;
+        background: linear-gradient(180deg, var(--light-gray) 0%, white 100%);
+        border-right: 1px solid var(--medium-gray);
     }
     
     .css-1d391kg .stSelectbox > div > div {
         border-radius: var(--border-radius);
-        border: 2px solid var(--medium-beige);
+        border: 2px solid var(--medium-gray);
         transition: border-color 0.3s ease;
-        background: white;
     }
     
     .css-1d391kg .stSelectbox > div > div:focus-within {
-        border-color: var(--primary-mocha);
-        box-shadow: 0 0 0 3px rgba(158, 122, 104, 0.1);
+        border-color: var(--primary-orange);
+        box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
     }
     
     .css-1d391kg .stNumberInput > div > div {
         border-radius: var(--border-radius);
-        border: 2px solid var(--medium-beige);
+        border: 2px solid var(--medium-gray);
         transition: border-color 0.3s ease;
-        background: white;
     }
     
     .css-1d391kg .stNumberInput > div > div:focus-within {
-        border-color: var(--primary-mocha);
-        box-shadow: 0 0 0 3px rgba(158, 122, 104, 0.1);
+        border-color: var(--primary-orange);
+        box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
     }
     
     /* Expander styling */
     .streamlit-expanderHeader {
-        background: linear-gradient(135deg, var(--light-cream), white);
+        background: linear-gradient(135deg, var(--light-gray), white);
         border-radius: var(--border-radius);
-        border: 1px solid var(--medium-beige);
+        border: 1px solid var(--medium-gray);
         padding: 1rem;
         transition: all 0.3s ease;
     }
     
     .streamlit-expanderHeader:hover {
-        background: linear-gradient(135deg, var(--medium-beige), var(--light-cream));
+        background: linear-gradient(135deg, var(--medium-gray), var(--light-gray));
         box-shadow: var(--shadow-light);
     }
     
     .streamlit-expanderContent {
-        border: 1px solid var(--medium-beige);
+        border: 1px solid var(--medium-gray);
         border-top: none;
         border-radius: 0 0 var(--border-radius) var(--border-radius);
         padding: 1.5rem;
@@ -288,7 +265,7 @@ st.markdown("""
     /* Tab styling */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
-        background: var(--light-cream);
+        background: var(--light-gray);
         padding: 0.5rem;
         border-radius: var(--border-radius);
     }
@@ -301,7 +278,7 @@ st.markdown("""
     }
     
     .stTabs [aria-selected="true"] {
-        background: var(--primary-mocha);
+        background: var(--primary-orange);
         color: white;
     }
     
@@ -311,7 +288,7 @@ st.markdown("""
         padding: 1.5rem;
         border-radius: var(--border-radius);
         box-shadow: var(--shadow-light);
-        border: 1px solid var(--medium-beige);
+        border: 1px solid var(--medium-gray);
         margin-bottom: 1rem;
         transition: all 0.3s ease;
     }
@@ -381,21 +358,21 @@ st.markdown("""
     
     /* Loading and transition effects */
     .stSpinner > div {
-        border-top-color: var(--primary-mocha) !important;
+        border-top-color: var(--primary-orange) !important;
     }
     
     /* Custom utility classes */
     .gradient-bg {
-        background: linear-gradient(135deg, var(--light-cream) 0%, var(--medium-beige) 100%);
+        background: linear-gradient(135deg, var(--light-gray) 0%, var(--medium-gray) 100%);
         padding: 1.5rem;
         border-radius: var(--border-radius);
         margin-bottom: 2rem;
-        border: 1px solid var(--medium-beige);
+        border: 1px solid var(--medium-gray);
     }
     
     .highlight-box {
-        background: linear-gradient(135deg, rgba(216, 191, 175, 0.1), rgba(245, 241, 235, 0.05));
-        border: 1px solid rgba(216, 191, 175, 0.2);
+        background: linear-gradient(135deg, rgba(255, 107, 53, 0.1), rgba(247, 147, 30, 0.05));
+        border: 1px solid rgba(255, 107, 53, 0.2);
         border-radius: var(--border-radius);
         padding: 1.5rem;
         margin: 1rem 0;
@@ -408,17 +385,69 @@ st.markdown("""
     }
     
     ::-webkit-scrollbar-track {
-        background: var(--light-cream);
+        background: var(--light-gray);
         border-radius: 4px;
     }
     
     ::-webkit-scrollbar-thumb {
-        background: var(--primary-mocha);
+        background: var(--primary-orange);
         border-radius: 4px;
     }
     
     ::-webkit-scrollbar-thumb:hover {
-        background: var(--secondary-cream);
+        background: var(--secondary-orange);
+    }
+    
+    /* Pick Suggestions Styling */
+    .suggestion-container {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-left: 4px solid var(--primary-orange);
+        border-radius: 8px;
+        padding: 1rem;
+        margin: 0.5rem 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .suggestion-container:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    
+    .suggestion-high-priority {
+        background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+        border-left-color: #f39c12;
+    }
+    
+    .suggestion-medium-priority {
+        background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+        border-left-color: #17a2b8;
+    }
+    
+    .suggestion-header {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-dark);
+        margin-bottom: 0.25rem;
+    }
+    
+    .suggestion-reasoning {
+        font-style: italic;
+        color: #6c757d;
+        font-size: 0.9rem;
+        line-height: 1.4;
+    }
+    
+    .pick-preview {
+        background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%);
+        border: 1px solid #c3e6cb;
+        border-radius: 6px;
+        padding: 0.75rem;
+        margin: 0.5rem 0;
+    }
+    
+    .pick-preview strong {
+        color: #155724;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -426,29 +455,22 @@ st.markdown("""
 # Apply metric card styling
 style_metric_cards(
     background_color="#FFFFFF",
-    border_left_color="#9E7A68",
-    border_color="#E8E0D6",
+    border_left_color="#FF6B35",
+    border_color="#E9ECEF",
     box_shadow="#F0F2F6"
 )
 
 # Title and description with better spacing
-st.markdown("""
-<div style="background: linear-gradient(135deg, var(--primary-mocha), var(--dark-brown)); 
-            padding: 2rem; border-radius: var(--border-radius); margin-bottom: 2rem; 
-            color: white; box-shadow: var(--shadow-medium);">
-    <h1 style="margin: 0; font-size: 2.5rem; font-weight: 700; color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">
-        🏀 The Lineup - Draft Assistant
-    </h1>
-    <p style="margin: 0.5rem 0 0 0; font-size: 1.2rem; opacity: 0.95; color: var(--light-cream);">
-        Your AI-powered fantasy basketball draft companion
-    </p>
-</div>
-""", unsafe_allow_html=True)
+colored_header(
+    label="🏀 The Lineup - Draft Assistant",
+    description="Your AI-powered fantasy basketball draft companion",
+    color_name="orange-70"
+)
 
 st.markdown("""
 <div class="highlight-box">
     <h4 style="margin-top: 0; color: var(--text-dark);">🎯 Welcome to The Lineup!</h4>
-    <p style="margin-bottom: 0; color: var(--dark-brown); font-size: 1.1rem; line-height: 1.6;">
+    <p style="margin-bottom: 0; color: var(--dark-gray); font-size: 1.1rem; line-height: 1.6;">
         This advanced draft assistant uses z-score analysis and real-time player projections 
         to help you dominate your fantasy basketball draft. Get optimal pick suggestions, 
         track team compositions, and make data-driven decisions.
@@ -458,14 +480,11 @@ st.markdown("""
 
 # Draft Type Selection with improved styling
 with st.sidebar:
-    st.markdown("""
-    <div style="background: linear-gradient(135deg, var(--primary-mocha), var(--dark-brown)); 
-                padding: 1rem; border-radius: var(--border-radius); margin-bottom: 1rem; 
-                color: white; box-shadow: var(--shadow-light);">
-        <h3 style="margin: 0; font-size: 1.2rem; color: white;">⚙️ Draft Configuration</h3>
-        <p style="margin: 0.25rem 0 0 0; font-size: 0.9rem; opacity: 0.9; color: var(--light-cream);">Set up your draft parameters</p>
-    </div>
-    """, unsafe_allow_html=True)
+    colored_header(
+        label="⚙️ Draft Configuration",
+        description="Set up your draft parameters",
+        color_name="blue-70"
+    )
     
     draft_type = st.selectbox(
         "🎯 Draft Type",
@@ -483,14 +502,11 @@ with st.sidebar:
     st.markdown("---")
     
     # League Settings with better organization
-    st.markdown("""
-    <div style="background: linear-gradient(135deg, var(--accent-sage), var(--dark-brown)); 
-                padding: 1rem; border-radius: var(--border-radius); margin-bottom: 1rem; 
-                color: white; box-shadow: var(--shadow-light);">
-        <h3 style="margin: 0; font-size: 1.2rem; color: white;">🏆 League Settings</h3>
-        <p style="margin: 0.25rem 0 0 0; font-size: 0.9rem; opacity: 0.9; color: var(--light-cream);">Configure your league parameters</p>
-    </div>
-    """, unsafe_allow_html=True)
+    colored_header(
+        label="🏆 League Settings",
+        description="Configure your league parameters",
+        color_name="green-70"
+    )
     
     col_sidebar1, col_sidebar2 = st.columns(2)
     with col_sidebar1:
@@ -500,14 +516,11 @@ with st.sidebar:
 
 # Main content based on draft type
 if draft_type == "Mock Draft":
-    st.markdown("""
-    <div style="background: linear-gradient(135deg, var(--primary-mocha), var(--dark-brown)); 
-                padding: 1.5rem; border-radius: var(--border-radius); margin-bottom: 2rem; 
-                color: white; box-shadow: var(--shadow-medium);">
-        <h2 style="margin: 0; font-size: 2rem; color: white; text-shadow: 1px 1px 2px rgba(0,0,0,0.3);">🎯 Mock Draft Mode</h2>
-        <p style="margin: 0.5rem 0 0 0; font-size: 1.1rem; opacity: 0.95; color: var(--light-cream);">Practice drafting against AI opponents</p>
-    </div>
-    """, unsafe_allow_html=True)
+    colored_header(
+        label="🎯 Mock Draft Mode",
+        description="Practice drafting against AI opponents",
+        color_name="orange-70"
+    )
     
     # Initialize or continue draft
     if "draft_started" not in st.session_state:
@@ -612,6 +625,159 @@ if draft_type == "Mock Draft":
             roster_size = 13
             return all(len(roster) >= roster_size for roster in st.session_state.team_rosters.values())
 
+        # Helper: Get pick suggestions with reasoning
+        def get_pick_suggestions(available_players, user_roster_ids, current_round, draft_position, num_teams):
+            suggestions = []
+            
+            if len(available_players) == 0:
+                return suggestions
+            
+            # Get user's current roster for analysis
+            user_roster_df = player_pool_df[player_pool_df["player_id"].isin(user_roster_ids)] if user_roster_ids else pd.DataFrame()
+            
+            # Analyze top 10 available players
+            top_players = available_players.head(10)
+            
+            for idx, player in top_players.iterrows():
+                reasoning_parts = []
+                priority_score = 0
+                
+                # 1. Position Scarcity Analysis
+                position = player['position']
+                position_available = available_players[available_players['position'].str.contains(position.split('-')[0], na=False)]
+                elite_position_count = len(position_available[position_available['total_z_score'] > 5])
+                
+                if elite_position_count <= 3:
+                    reasoning_parts.append(f"Only {elite_position_count} elite {position}s left")
+                    priority_score += 15
+                elif elite_position_count <= 5:
+                    reasoning_parts.append(f"Limited elite {position} options remaining")
+                    priority_score += 10
+                
+                # 2. Value vs ADP Analysis
+                if pd.notna(player['adp']):
+                    current_pick_number = ((current_round - 1) * num_teams) + draft_position
+                    adp_value = player['adp'] - current_pick_number
+                    
+                    if adp_value > 12:
+                        reasoning_parts.append(f"Excellent value - typically drafted {int(adp_value)} picks later")
+                        priority_score += 20
+                    elif adp_value > 6:
+                        reasoning_parts.append(f"Good value - ADP suggests pick {int(player['adp'])}")
+                        priority_score += 10
+                    elif adp_value < -6:
+                        reasoning_parts.append(f"Reaching early - ADP is pick {int(player['adp'])}")
+                        priority_score -= 5
+                
+                # 3. Team Need Assessment
+                if len(user_roster_df) > 0:
+                    # Analyze team's category strengths/weaknesses
+                    team_positions = user_roster_df['position'].str.split('-').explode().value_counts()
+                    
+                    # Position need
+                    main_position = position.split('-')[0]
+                    position_count = team_positions.get(main_position, 0)
+                    
+                    if position_count == 0:
+                        reasoning_parts.append(f"Fills {main_position} need")
+                        priority_score += 12
+                    elif position_count == 1 and main_position in ['C', 'PG']:
+                        reasoning_parts.append(f"Adds {main_position} depth")
+                        priority_score += 8
+                
+                # 4. Z-Score Tier Analysis
+                z_score = player['total_z_score']
+                next_player_z = top_players.iloc[min(idx + 1, len(top_players) - 1)]['total_z_score'] if idx < len(top_players) - 1 else 0
+                z_drop = z_score - next_player_z
+                
+                if z_score > 10:
+                    reasoning_parts.append("Elite tier player")
+                    priority_score += 15
+                elif z_score > 7:
+                    reasoning_parts.append("High-tier option")
+                    priority_score += 10
+                elif z_score > 4:
+                    reasoning_parts.append("Solid contributor")
+                    priority_score += 5
+                
+                if z_drop > 2:
+                    reasoning_parts.append("Significant tier drop after this pick")
+                    priority_score += 8
+                
+                # 5. Round-specific logic
+                if current_round <= 3:
+                    if z_score > 8:
+                        reasoning_parts.append("Top-tier talent for early rounds")
+                        priority_score += 10
+                elif current_round <= 6:
+                    if z_score > 5:
+                        reasoning_parts.append("Strong mid-round value")
+                        priority_score += 8
+                else:
+                    if z_score > 2:
+                        reasoning_parts.append("Good late-round upside")
+                        priority_score += 5
+                
+                # 6. Next pick timing
+                picks_until_next = (num_teams * 2) - draft_position if current_round % 2 == 1 else draft_position - 1
+                if picks_until_next > 20:
+                    reasoning_parts.append(f"Long wait until next pick ({picks_until_next} picks)")
+                    priority_score += 5
+                
+                # Create suggestion
+                if reasoning_parts:
+                    main_reason = reasoning_parts[0]
+                    additional_reasons = reasoning_parts[1:3]  # Limit to avoid clutter
+                    
+                    suggestion = {
+                        'player_name': player['name'],
+                        'player_id': player['player_id'],
+                        'position': player['position'],
+                        'z_score': player['total_z_score'],
+                        'adp': player['adp'],
+                        'main_reason': main_reason,
+                        'additional_reasons': additional_reasons,
+                        'priority_score': priority_score,
+                        'reasoning_text': f"{main_reason}" + (f" • {' • '.join(additional_reasons)}" if additional_reasons else "")
+                    }
+                    suggestions.append(suggestion)
+            
+            # Sort by priority score and return top 5
+            suggestions.sort(key=lambda x: x['priority_score'], reverse=True)
+            return suggestions[:5]
+
+        # Helper: Format pick suggestion display
+        def display_pick_suggestions(suggestions):
+            if not suggestions:
+                st.info("🤖 Analyzing available players...")
+                return
+            
+            st.markdown("### 🎯 AI Pick Suggestions")
+            
+            for i, suggestion in enumerate(suggestions):
+                priority_emoji = "🔥" if suggestion['priority_score'] > 25 else "⭐" if suggestion['priority_score'] > 15 else "💡"
+                
+                # Determine CSS class based on priority
+                css_class = "suggestion-high-priority" if suggestion['priority_score'] > 25 else "suggestion-medium-priority" if suggestion['priority_score'] > 15 else "suggestion-container"
+                
+                # Format ADP safely
+                adp_display = f"{suggestion['adp']:.0f}" if pd.notna(suggestion['adp']) else "N/A"
+                
+                st.markdown(f"""
+                <div class="{css_class}">
+                    <div class="suggestion-header">
+                        {priority_emoji} {suggestion['player_name']} ({suggestion['position']})
+                    </div>
+                    <div class="suggestion-reasoning">
+                        {suggestion['reasoning_text']}
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.85rem;">
+                        <span><strong>Z-Score:</strong> {suggestion['z_score']:.1f}</span>
+                        <span><strong>ADP:</strong> {adp_display}</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
         # --- 2. Draft Turn Logic ---
         if not st.session_state.draft_complete:
             available_players = get_available_players()
@@ -628,12 +794,35 @@ if draft_type == "Mock Draft":
             if current_team == user_team:
                 st.success(f"🎯 Your pick! (Round {st.session_state.draft_round}, Pick {current_team})")
                 
+                # Generate and display pick suggestions
+                suggestions = get_pick_suggestions(
+                    available_players, 
+                    st.session_state.team_rosters[user_team], 
+                    st.session_state.draft_round, 
+                    draft_position, 
+                    num_teams
+                )
+                
+                if suggestions:
+                    display_pick_suggestions(suggestions)
+                    st.markdown("---")
+                
                 # Player selection in responsive layout
                 col_pick1, col_pick2 = st.columns([3, 1])
                 with col_pick1:
                     player_options = available_players[["player_id", "name"]].drop_duplicates()
                     player_dict = dict(zip(player_options["name"], player_options["player_id"]))
-                    selected_name = st.selectbox("🏀 Select a player to draft:", player_options["name"])
+                    
+                    # Pre-select the top suggestion if available
+                    default_selection = suggestions[0]['player_name'] if suggestions else player_options["name"].iloc[0]
+                    default_index = list(player_options["name"]).index(default_selection) if default_selection in player_options["name"].values else 0
+                    
+                    selected_name = st.selectbox(
+                        "🏀 Select a player to draft:", 
+                        player_options["name"],
+                        index=default_index,
+                        help="Top AI suggestion is pre-selected"
+                    )
                 with col_pick2:
                     st.markdown("<br>", unsafe_allow_html=True)  # Add spacing
                     if st.button("✅ Draft Player", key=f"draft_{selected_name}", type="primary"):
@@ -837,27 +1026,45 @@ if draft_type == "Mock Draft":
                     st.success("🎯 Your turn to pick!")
                 else:
                     st.info(f"🤖 Team {current_team} is picking...")
+                    
+                    # Show preview of next suggestion
+                    if st.session_state.team_rosters[user_team]:  # Only if user has drafted someone
+                        preview_suggestions = get_pick_suggestions(
+                            available_players, 
+                            st.session_state.team_rosters[user_team], 
+                            st.session_state.draft_round, 
+                            draft_position, 
+                            num_teams
+                        )
+                        
+                        if preview_suggestions:
+                            top_suggestion = preview_suggestions[0]
+                            st.markdown(f"""
+                            <div class="pick-preview">
+                                <strong>💡 Next Pick Preview:</strong><br>
+                                {top_suggestion['player_name']} ({top_suggestion['position']})<br>
+                                <em>{top_suggestion['main_reason']}</em>
+                            </div>
+                            """, unsafe_allow_html=True)
                 
                 # Show current round and pick info
-                st.metric("Current Round", st.session_state.draft_round)
-                st.metric("Current Pick", f"Team {current_team}")
+                st.metric("🔄 Current Round", st.session_state.draft_round)
+                st.metric("🎯 Current Pick", f"Team {current_team}")
                 
                 # Show next user pick in round
                 user_picks_in_round = [i for i, t in enumerate(st.session_state.draft_order, 1) if t == user_team]
                 if user_picks_in_round and current_team != user_team:
                     next_user_pick = user_picks_in_round[0]
-                    st.metric("Your Next Pick", f"#{next_user_pick} in round")
+                    st.metric("⏭️ Your Next Pick", f"#{next_user_pick} in round")
 
             # --- 5. Draft Progress Sidebar ---
             with st.sidebar:
                 st.markdown("---")
-                st.markdown("""
-                <div style="background: linear-gradient(135deg, var(--accent-charcoal), var(--dark-brown)); 
-                            padding: 1rem; border-radius: var(--border-radius); margin-bottom: 1rem; color: white;">
-                    <h3 style="margin: 0; font-size: 1.2rem;">📊 Draft Progress</h3>
-                    <p style="margin: 0.25rem 0 0 0; font-size: 0.9rem; opacity: 0.9;">Track your draft status</p>
-                </div>
-                """, unsafe_allow_html=True)
+                colored_header(
+                    label="📊 Draft Progress",
+                    description="Track your draft status",
+                    color_name="violet-70"
+                )
                 
                 # Use columns for better mobile sidebar layout
                 sidebar_col1, sidebar_col2 = st.columns(2)
@@ -903,22 +1110,20 @@ if draft_type == "Mock Draft":
                         st.write("No players drafted.")
 
 elif draft_type == "Live Draft Assistant":
-    st.markdown("""
-    <div style="background: linear-gradient(135deg, var(--error-rust), var(--warning-amber)); 
-                padding: 1.5rem; border-radius: var(--border-radius); margin-bottom: 2rem; color: white;">
-        <h2 style="margin: 0; font-size: 2rem;">🔴 Live Draft Assistant</h2>
-        <p style="margin: 0.5rem 0 0 0; font-size: 1.1rem; opacity: 0.9;">Real-time draft support for your live draft</p>
-    </div>
-    """, unsafe_allow_html=True)
+    colored_header(
+        label="🔴 Live Draft Assistant",
+        description="Real-time draft support for your live draft",
+        color_name="red-70"
+    )
     
     st.markdown("""
     <div class="highlight-box">
         <h4 style="margin-top: 0; color: var(--text-dark);">🚧 Coming Soon!</h4>
-        <p style="margin-bottom: 0.5rem; color: var(--dark-brown);">
+        <p style="margin-bottom: 0.5rem; color: var(--dark-gray);">
             Connect this assistant to your live draft to get real-time pick suggestions
             and team analysis as your draft progresses.
         </p>
-        <p style="margin-bottom: 0; color: var(--dark-brown); font-size: 0.9rem;">
+        <p style="margin-bottom: 0; color: var(--dark-gray); font-size: 0.9rem;">
             <strong>Features in development:</strong><br>
             • Real-time draft room integration<br>
             • Live pick tracking and suggestions<br>
@@ -931,11 +1136,26 @@ elif draft_type == "Live Draft Assistant":
     st.file_uploader("📁 Upload Custom ADP (Optional)", type=["csv"], help="Upload your league's custom ADP data")
 
 elif draft_type == "Draft Optimizer":
+    colored_header(
+        label="⚡ Draft Optimizer",
+        description="Advanced strategy planning and optimization",
+        color_name="blue-70"
+    )
+    
     st.markdown("""
-    <div style="background: linear-gradient(135deg, var(--accent-terracotta), var(--warning-amber)); 
-                padding: 1.5rem; border-radius: var(--border-radius); margin-bottom: 2rem; color: white;">
-        <h2 style="margin: 0; font-size: 2rem;">⚡ Draft Optimizer</h2>
-        <p style="margin: 0.5rem 0 0 0; font-size: 1.1rem; opacity: 0.9;">Advanced strategy planning and optimization</p>
+    <div class="highlight-box">
+        <h4 style="margin-top: 0; color: var(--text-dark);">🔬 Advanced Strategy Planning</h4>
+        <p style="margin-bottom: 0.5rem; color: var(--dark-gray);">
+            Plan your optimal draft strategy based on your draft position and league settings.
+            The optimizer will suggest the best possible combinations of players to target.
+        </p>
+        <p style="margin-bottom: 0; color: var(--dark-gray); font-size: 0.9rem;">
+            <strong>Optimization features:</strong><br>
+            • Multi-round strategy planning<br>
+            • Punt strategy recommendations<br>
+            • Value-based drafting analysis<br>
+            • Position scarcity modeling
+        </p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -949,13 +1169,11 @@ elif draft_type == "Draft Optimizer":
 with st.sidebar:
     st.markdown("---")
     if "draft_started" in st.session_state and st.session_state.draft_started and not st.session_state.get('draft_complete', False):
-        st.markdown("""
-        <div style="background: linear-gradient(135deg, var(--accent-charcoal), var(--dark-brown)); 
-                    padding: 1rem; border-radius: var(--border-radius); margin-bottom: 1rem; color: white;">
-            <h3 style="margin: 0; font-size: 1.2rem;">🎯 Quick Stats</h3>
-            <p style="margin: 0.25rem 0 0 0; font-size: 0.9rem; opacity: 0.9;">Draft overview</p>
-        </div>
-        """, unsafe_allow_html=True)
+        colored_header(
+            label="🎯 Quick Stats",
+            description="Draft overview",
+            color_name="gray-70"
+        )
         sidebar_col1, sidebar_col2 = st.columns(2)
         with sidebar_col1:
             st.metric("👥 Teams", num_teams)
@@ -963,8 +1181,8 @@ with st.sidebar:
             st.metric("📍 Your Pos", draft_position)
     else:
         st.markdown("""
-        <div style="text-align: center; padding: 1rem; color: var(--dark-brown);">
+        <div style="text-align: center; padding: 1rem; color: var(--dark-gray);">
             <small>🏀 The Lineup v1.0<br>
             Fantasy Basketball Draft Assistant</small>
         </div>
-        """, unsafe_allow_html=True)    
+        """, unsafe_allow_html=True) 
