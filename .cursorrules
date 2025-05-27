@@ -34,6 +34,29 @@
       "Validate DB session handling and error recovery",
       "Avoid duplicating logic across ETL scripts",
       "Assume all code will be deployed eventually; follow production-grade standards"
+    ],
+    "file_organization": [
+      "NEVER create standalone demo files or separate README files for features",
+      "NEVER create test files in the root directory - use existing test structure",
+      "NEVER create debug scripts in the root directory",
+      "ALWAYS integrate new features into existing files when possible",
+      "ALWAYS ask before creating new files - modify existing ones first",
+      "Keep the root directory clean - only essential project files",
+      "Use inline documentation instead of separate documentation files"
+    ],
+    "feature_integration": [
+      "New UI features should be added to existing components, not new files",
+      "Extend existing pages rather than creating new demo pages",
+      "Add functionality to existing routers rather than creating new ones",
+      "Integrate tests into existing test files when possible",
+      "Always check if functionality already exists before creating new code"
+    ],
+    "project_cleanliness": [
+      "Maintain a clean root directory with only essential files",
+      "Remove temporary files after development",
+      "Consolidate related functionality into existing modules",
+      "Avoid creating multiple files for a single feature",
+      "Keep documentation concise and inline with code"
     ]
   }
 }

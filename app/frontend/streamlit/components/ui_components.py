@@ -34,9 +34,9 @@ def render_header():
     <div class="highlight-box">
         <h4 style="margin-top: 0; color: var(--text-dark);">🎯 Welcome to The Lineup!</h4>
         <p style="margin-bottom: 0; color: var(--dark-gray); font-size: 1.1rem; line-height: 1.6;">
-            This advanced draft assistant uses z-score analysis and real-time player projections 
-            to help you dominate your fantasy basketball draft. Get optimal pick suggestions, 
-            track team compositions, and make data-driven decisions.
+            This advanced draft assistant uses z-score analysis, player comparison tools, and historical trend analysis 
+            to help you dominate your fantasy basketball draft. Get optimal pick suggestions, compare players side-by-side, 
+            track team compositions, and make data-driven decisions with comprehensive analytics.
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -490,6 +490,9 @@ def render_available_players(available_players: pd.DataFrame, player_pool_df: pd
         hide_index=True
     )
     
+    # Feature highlight callout
+    st.info("💡 **New Features**: Click below to access **⚖️ Player Comparison** and **📈 Historical Trends** analysis!")
+    
     # Add detailed stats expander
     with st.expander("📊 View Detailed Player Stats & Z-Scores"):
         if len(top_available) > 0:
@@ -500,8 +503,8 @@ def render_available_players(available_players: pd.DataFrame, player_pool_df: pd
             enhanced_players = player_pool_df[player_pool_df['player_id'].isin(top_player_ids)].copy()
             
             if not enhanced_players.empty:
-                # Create tabs for better mobile experience - now with historical trends
-                tab1, tab2, tab3 = st.tabs(["📈 Season Averages", "⚡ Z-Score Breakdown", "📊 Historical Trends"])
+                # Create tabs for better mobile experience - now with player comparison
+                tab1, tab2, tab3, tab4 = st.tabs(["📈 Season Averages", "⚡ Z-Score Breakdown", "📊 Historical Trends", "⚖️ Player Comparison"])
                 
                 with tab1:
                     # For season averages, we need to query the database for detailed stats
@@ -590,6 +593,18 @@ def render_available_players(available_players: pd.DataFrame, player_pool_df: pd
                     except Exception as e:
                         st.warning("Historical trends temporarily unavailable")
                         st.markdown("*Please ensure the backend API is running at http://localhost:8000*")
+                
+                with tab4:
+                    # Player comparison tab - import and use our new component
+                    try:
+                        from app.frontend.streamlit.components.player_comparison import render_player_comparison_tool
+                        render_player_comparison_tool(available_players, player_pool_df, season, engine)
+                    except ImportError as e:
+                        st.error(f"Player comparison component not available: {e}")
+                        st.markdown("*Player comparison tool requires additional dependencies.*")
+                    except Exception as e:
+                        st.warning("Player comparison tool temporarily unavailable")
+                        st.markdown("*Please ensure all dependencies are installed and the backend API is running.*")
             else:
                 st.write("No detailed stats available for these players.")
 
@@ -730,6 +745,16 @@ def render_onboarding_modal():
                 - **Team Rankings**: See where you rank vs other teams (1st, 2nd, 3rd, etc.)
                 
                 - **Color-Coded Status**: 🟢 Strong (top 1/3) • 🟡 Average (middle 1/3) • 🔴 Weak (bottom 1/3)
+                
+                ### ⚖️ **Player Comparison Tool**
+                
+                - **Side-by-Side Analysis**: Compare any two players with interactive radar charts
+                
+                - **Z-Score Visualization**: See exactly how players stack up across all 9 categories
+                
+                - **Draft Recommendations**: Get intelligent insights on which player to target
+                
+                - **Historical Trends**: Compare player trajectories over multiple seasons
                 """)
             
             with col2:
@@ -741,6 +766,16 @@ def render_onboarding_modal():
                 - **Multi-Category Value**: Total z-score combines all 9 fantasy categories
                 
                 - **Tier-Based Drafting**: Identify when there's a significant drop-off in talent
+                
+                ### 📈 **Historical Stat Trends**
+                
+                - **Multi-Season Analysis**: View player performance trends over the last 3 seasons
+                
+                - **Trend Indicators**: See if players are improving, declining, or staying consistent
+                
+                - **Draft Insights**: Make informed decisions based on player trajectory
+                
+                - **Mini-Sparklines**: Quick visual representation of key stat trends
                 
                 ### 🤖 **Mock Draft Features**
                 
@@ -755,13 +790,28 @@ def render_onboarding_modal():
             
             st.markdown("---")
             
+            # Advanced features callout
+            st.markdown("""
+            ### 🚀 **Advanced Analytics Features**
+            
+            **📊 Player Details Tabs** - Access comprehensive player analysis:
+            - **📈 Season Averages**: Current season per-game statistics
+            - **⚡ Z-Score Breakdown**: Statistical rankings across all categories  
+            - **📊 Historical Trends**: Multi-season performance analysis with trend indicators
+            - **⚖️ Player Comparison**: Side-by-side comparison tool with radar charts and recommendations
+            
+            💡 **Pro Tip**: Use the Player Comparison tool to decide between similar players or compare your targets!
+            """)
+            
+            st.markdown("---")
+            
             # Quick start guide
             st.markdown("""
             ### 🚀 **Quick Start Guide**
             
             1. **Configure Your Draft** (sidebar):
                - Choose "Mock Draft" to practice
-               - Select your season (2023-24 recommended)
+               - Select your season (2022-23 recommended)
                - Set number of teams (8-20)
                - Pick your draft position
             
@@ -770,14 +820,19 @@ def render_onboarding_modal():
                - Follow AI suggestions or pick your own players
                - Watch your category rankings update in real-time
             
-            3. **Make Strategic Decisions**:
+            3. **Use Advanced Analytics**:
+               - Click "📊 View Detailed Player Stats" to access all analysis tabs
+               - Compare players using the ⚖️ Player Comparison tool
+               - Check 📈 Historical Trends to see player trajectories
                - Focus on 🔴 weak categories to improve team balance
+            
+            4. **Make Strategic Decisions**:
                - Consider position scarcity (limited elite Centers, etc.)
                - Balance value picks with team needs
+               - Use comparison tool for tough decisions
             
-            4. **Learn & Improve**:
-               - Try different draft positions
-               - Experiment with various strategies
+            5. **Learn & Improve**:
+               - Try different draft positions and strategies
                - Use insights for your real draft!
             """)
             
@@ -817,11 +872,18 @@ def render_help_section():
             - 🟡 = Middle 1/3 of teams
             - 🔴 = Bottom 1/3 of teams
             
+            **📊 Player Analysis Tabs**
+            - 📈 Season Averages
+            - ⚡ Z-Score Breakdown  
+            - 📊 Historical Trends
+            - ⚖️ Player Comparison
+            
             **💡 Pro Tips**
             - Draft elite players early (rounds 1-3)
             - Address 🔴 weak categories
+            - Use ⚖️ comparison for tough decisions
+            - Check 📈 trends for player trajectory
             - Consider position scarcity
-            - Balance stats vs team needs
             """)
             
             col_help1, col_help2 = st.columns(2)
@@ -853,7 +915,7 @@ def render_feature_highlights():
             margin-bottom: 1rem;
         ">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
-                <div><strong>🎯 AI Suggestions</strong> • <strong>📊 Team Rankings</strong> • <strong>🧠 Z-Score Analysis</strong></div>
+                <div><strong>🎯 AI Suggestions</strong> • <strong>⚖️ Player Comparison</strong> • <strong>📈 Historical Trends</strong> • <strong>📊 Team Rankings</strong></div>
                 <div style="font-size: 0.8rem; color: #6c757d;">
                     <em>New to The Lineup? Check the sidebar help section!</em>
                 </div>
