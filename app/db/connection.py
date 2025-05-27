@@ -20,3 +20,11 @@ connection_url = URL.create(
 
 engine = create_engine(connection_url)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+def get_db():
+    """Dependency function to get database session for FastAPI."""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

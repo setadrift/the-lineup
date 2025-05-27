@@ -500,8 +500,8 @@ def render_available_players(available_players: pd.DataFrame, player_pool_df: pd
             enhanced_players = player_pool_df[player_pool_df['player_id'].isin(top_player_ids)].copy()
             
             if not enhanced_players.empty:
-                # Create tabs for better mobile experience
-                tab1, tab2 = st.tabs(["📈 Season Averages", "⚡ Z-Score Breakdown"])
+                # Create tabs for better mobile experience - now with historical trends
+                tab1, tab2, tab3 = st.tabs(["📈 Season Averages", "⚡ Z-Score Breakdown", "📊 Historical Trends"])
                 
                 with tab1:
                     # For season averages, we need to query the database for detailed stats
@@ -578,6 +578,18 @@ def render_available_players(available_players: pd.DataFrame, player_pool_df: pd
                         st.dataframe(z_score_display, use_container_width=True, hide_index=True)
                     else:
                         st.write("Z-score data not available for these players.")
+                
+                with tab3:
+                    # Historical trends tab - import and use our new component
+                    try:
+                        from app.frontend.streamlit.components.draft_historical_trends import render_draft_historical_trends_tab
+                        render_draft_historical_trends_tab(top_available)
+                    except ImportError as e:
+                        st.error(f"Historical trends component not available: {e}")
+                        st.markdown("*Historical trends analysis requires the backend API to be running.*")
+                    except Exception as e:
+                        st.warning("Historical trends temporarily unavailable")
+                        st.markdown("*Please ensure the backend API is running at http://localhost:8000*")
             else:
                 st.write("No detailed stats available for these players.")
 
