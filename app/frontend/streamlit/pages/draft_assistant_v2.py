@@ -53,6 +53,19 @@ from app.frontend.streamlit.components.draft_logic import (
 def main():
     """Main application entry point."""
     
+    # Set page config for wide layout (must be first Streamlit command)
+    # Only set if not already configured (e.g., when called directly vs from streamlit_app.py)
+    try:
+        st.set_page_config(
+            page_title="The Lineup - Draft Assistant",
+            page_icon="🏀",
+            layout="wide",
+            initial_sidebar_state="expanded"
+        )
+    except st.errors.StreamlitAPIException:
+        # Page config already set, continue
+        pass
+    
     # Apply styling
     apply_main_styling()
     setup_metric_cards()
@@ -243,7 +256,22 @@ def render_draft_interface(draft_state: DraftState, available_players: pd.DataFr
         draft_state.user_team_id
     )
     
-    render_roster_display(user_roster_df, user_category_analysis)
+    # Get punt strategy analysis
+    punt_analysis = category_analyzer.detect_punt_strategies(
+        draft_state.get_user_roster_ids(),
+        draft_state.team_rosters,
+        draft_state.user_team_id
+    )
+    
+    # Get roster construction warnings
+    construction_warnings = category_analyzer.detect_roster_construction_warnings(
+        draft_state.get_user_roster_ids()
+    )
+    
+    # Store construction warnings in session state for UI components
+    st.session_state.construction_warnings = construction_warnings
+    
+    render_roster_display(user_roster_df, user_category_analysis, punt_analysis)
     
     # Available players section
     st.markdown("---")
@@ -301,10 +329,25 @@ def render_draft_interface(draft_state: DraftState, available_players: pd.DataFr
                 draft_state.team_rosters, 
                 draft_state.user_team_id
             )
-            if weak_categories:
+            
+            # Filter out punt categories from priority needs
+            punt_categories = [p['category'] for p in punt_analysis.get('punt_categories', [])]
+            filtered_weak_categories = [cat for cat in weak_categories if cat not in punt_categories]
+            
+            # Show punt strategy message if detected
+            if punt_analysis.get('strategy_confidence', 'none') in ['high', 'medium']:
+                st.markdown("### 🎯 Draft Strategy")
+                strategy_message = punt_analysis.get('message', '')
+                if punt_analysis.get('strategy_confidence') == 'high':
+                    st.success(f"**{strategy_message}**")
+                else:
+                    st.info(f"**{strategy_message}**")
+            
+            # Show priority needs (excluding punt categories)
+            if filtered_weak_categories:
                 st.markdown("### 🎯 Priority Needs")
                 need_text = []
-                for weak_cat in weak_categories:
+                for weak_cat in filtered_weak_categories:
                     cat_info = category_analyzer.CATEGORIES[weak_cat]
                     need_text.append(f"🔴 {cat_info['short']}")
                 
@@ -319,6 +362,28 @@ def render_draft_interface(draft_state: DraftState, available_players: pd.DataFr
                 ">
                     <strong>Focus on:</strong><br>
                     {' • '.join([cat.split(' ', 1)[1] for cat in need_text])}
+                </div>
+                """, unsafe_allow_html=True)
+            elif punt_categories:
+                # If we have punt categories but no other needs, show punt strategy focus
+                st.markdown("### 🎯 Strategy Focus")
+                non_punt_cats = [cat for cat in category_analyzer.CATEGORIES.keys() if cat not in punt_categories]
+                focus_text = []
+                for cat in non_punt_cats[:4]:  # Show top 4 non-punt categories
+                    cat_info = category_analyzer.CATEGORIES[cat]
+                    focus_text.append(f"🟢 {cat_info['short']}")
+                
+                st.markdown(f"""
+                <div style="
+                    background: linear-gradient(135deg, #28a74515, #28a74505);
+                    border: 1px solid #28a74540;
+                    border-left: 4px solid #28a745;
+                    border-radius: 6px;
+                    padding: 0.75rem;
+                    margin: 0.5rem 0;
+                ">
+                    <strong>Maximize:</strong><br>
+                    {' • '.join([cat.split(' ', 1)[1] for cat in focus_text])}
                 </div>
                 """, unsafe_allow_html=True)
     

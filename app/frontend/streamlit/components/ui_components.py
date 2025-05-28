@@ -418,46 +418,226 @@ def render_category_indicators(category_analysis: Dict[str, Any]):
     """, unsafe_allow_html=True)
 
 
-def render_roster_display(roster_df: pd.DataFrame, category_analysis: Dict[str, Any] = None, title: str = "👥 Your Team Roster"):
+def render_punt_strategy_analysis(punt_analysis: Dict[str, Any]):
     """
-    Render team roster display with optional category analysis.
+    Render punt strategy detection and recommendations.
     
     Args:
-        roster_df: DataFrame with roster players
-        category_analysis: Optional category analysis from CategoryAnalyzer
-        title: Title for the roster section
+        punt_analysis: Dictionary from CategoryAnalyzer.detect_punt_strategies()
     """
-    st.markdown(f"### {title}")
+    if not punt_analysis or punt_analysis.get('strategy_confidence', 'none') == 'none':
+        return
     
-    if len(roster_df) > 0:
-        # Show condensed view for mobile
-        st.dataframe(
-            roster_df[["name", "team", "position", "total_z_score"]].rename(columns={
-                'name': 'Player',
-                'team': 'Team', 
-                'position': 'Pos',
-                'total_z_score': 'Z-Score'
-            }), 
-            use_container_width=True,
-            hide_index=True
-        )
+    confidence = punt_analysis.get('strategy_confidence', 'none')
+    punt_categories = punt_analysis.get('punt_categories', [])
+    message = punt_analysis.get('message', '')
+    
+    if confidence in ['high', 'medium']:
+        st.markdown("### 🎯 Detected Punt Strategy")
         
-        # Show roster summary
-        col_summary1, col_summary2, col_summary3 = st.columns(3)
-        with col_summary1:
-            st.metric("Players Drafted", len(roster_df))
-        with col_summary2:
-            avg_z_score = roster_df['total_z_score'].mean()
-            st.metric("Avg Z-Score", f"{avg_z_score:.2f}")
-        with col_summary3:
-            total_z_score = roster_df['total_z_score'].sum()
-            st.metric("Total Z-Score", f"{total_z_score:.2f}")
+        # Color based on confidence
+        if confidence == 'high':
+            st.success(f"**{message}**")
+            confidence_color = "#28a745"
+        else:
+            st.info(f"**{message}**")
+            confidence_color = "#17a2b8"
         
-        # Show category indicators if analysis is provided
-        if category_analysis:
-            render_category_indicators(category_analysis)
+        # Show punt categories
+        if punt_categories:
+            punt_details = []
+            for punt_cat in punt_categories:
+                cat_info = punt_cat.get('category_info', {})
+                short_name = cat_info.get('short', punt_cat.get('category', ''))
+                confidence_text = punt_cat.get('confidence', 'medium')
+                punt_details.append(f"• {short_name} ({confidence_text} confidence)")
+            
+            st.markdown(f"""
+            <div style="
+                background: linear-gradient(135deg, rgba(23, 162, 184, 0.1), rgba(23, 162, 184, 0.05));
+                border: 1px solid rgba(23, 162, 184, 0.3);
+                border-left: 4px solid {confidence_color};
+                border-radius: 8px;
+                padding: 1rem;
+                margin: 0.5rem 0;
+            ">
+                <strong>Punting Categories:</strong><br>
+                {chr(10).join(punt_details)}
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Show strategy recommendations
+        recommendations = punt_analysis.get('recommendations', [])
+        if recommendations:
+            st.markdown("**Strategy Tips:**")
+            for rec in recommendations:
+                st.markdown(f"💡 {rec}")
+
+
+def render_roster_construction_warnings(construction_warnings: Dict[str, Any]):
+    """
+    Render roster construction warnings and recommendations.
+    
+    Args:
+        construction_warnings: Dictionary from CategoryAnalyzer.detect_roster_construction_warnings()
+    """
+    if not construction_warnings or not construction_warnings.get('warnings'):
+        # Show positive message if no warnings
+        if construction_warnings.get('risk_level') == 'none':
+            st.markdown("### ✅ Roster Health Check")
+            st.success("**Solid roster construction - no major concerns detected**")
+        return
+    
+    warnings = construction_warnings.get('warnings', [])
+    risk_level = construction_warnings.get('risk_level', 'low')
+    message = construction_warnings.get('message', '')
+    
+    # Header based on risk level
+    if risk_level == 'high':
+        st.markdown("### ⚠️ Roster Construction Warnings")
+        st.error(f"**{message}**")
+        header_color = "#dc3545"
+    elif risk_level == 'medium':
+        st.markdown("### 💡 Roster Construction Notes")
+        st.warning(f"**{message}**")
+        header_color = "#ffc107"
     else:
-        st.info("No players drafted yet.")
+        st.markdown("### 📋 Roster Construction Tips")
+        st.info(f"**{message}**")
+        header_color = "#17a2b8"
+    
+    # Group warnings by type for better organization
+    warning_groups = {}
+    for warning in warnings:
+        warning_type = warning.get('type', 'other')
+        if warning_type not in warning_groups:
+            warning_groups[warning_type] = []
+        warning_groups[warning_type].append(warning)
+    
+    # Display warnings by group
+    for warning_type, type_warnings in warning_groups.items():
+        for warning in type_warnings:
+            severity = warning.get('severity', 'low')
+            title = warning.get('title', 'Warning')
+            warning_message = warning.get('message', '')
+            recommendation = warning.get('recommendation', '')
+            affected_players = warning.get('affected_players', [])
+            
+            # Color based on severity
+            if severity == 'high':
+                border_color = "#dc3545"
+                bg_color = "rgba(220, 53, 69, 0.1)"
+                icon = "🚨"
+            elif severity == 'medium':
+                border_color = "#ffc107"
+                bg_color = "rgba(255, 193, 7, 0.1)"
+                icon = "⚠️"
+            else:
+                border_color = "#17a2b8"
+                bg_color = "rgba(23, 162, 184, 0.1)"
+                icon = "💡"
+            
+            # Build affected players text
+            players_text = ""
+            if affected_players:
+                if len(affected_players) <= 3:
+                    players_text = f"<br><em>Affected: {', '.join(affected_players)}</em>"
+                else:
+                    players_text = f"<br><em>Affected: {', '.join(affected_players[:3])} +{len(affected_players)-3} more</em>"
+            
+            st.markdown(f"""
+            <div style="
+                background: {bg_color};
+                border: 1px solid {border_color}40;
+                border-left: 4px solid {border_color};
+                border-radius: 8px;
+                padding: 1rem;
+                margin: 0.5rem 0;
+            ">
+                <strong>{icon} {title}</strong><br>
+                {warning_message}<br>
+                <span style="color: #6c757d; font-style: italic;">💡 {recommendation}</span>
+                {players_text}
+            </div>
+            """, unsafe_allow_html=True)
+    
+    # Show summary statistics
+    high_count = construction_warnings.get('high_severity_count', 0)
+    medium_count = construction_warnings.get('medium_severity_count', 0)
+    total_count = construction_warnings.get('total_warnings', 0)
+    
+    if total_count > 1:
+        st.markdown(f"""
+        <div style="
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            text-align: center;
+        ">
+            <strong>Summary:</strong> {total_count} total warnings
+            {f' • {high_count} high priority' if high_count > 0 else ''}
+            {f' • {medium_count} medium priority' if medium_count > 0 else ''}
+        </div>
+        """, unsafe_allow_html=True)
+
+
+def render_roster_display(roster_df: pd.DataFrame, category_analysis: Dict[str, Any], 
+                         punt_analysis: Dict[str, Any] = None):
+    """
+    Render the user's roster with category analysis and strategic insights.
+    
+    Args:
+        roster_df: DataFrame of user's roster
+        category_analysis: Dictionary from CategoryAnalyzer.analyze_team_categories()
+        punt_analysis: Dictionary from CategoryAnalyzer.detect_punt_strategies()
+    """
+    st.markdown("### 👥 Your Team")
+    
+    if roster_df.empty:
+        st.info("No players drafted yet. Start building your team!")
+        return
+    
+    # Display roster table
+    display_columns = ["name", "team", "position", "total_z_score"]
+    if "games_played" in roster_df.columns:
+        display_columns.append("games_played")
+    
+    column_mapping = {
+        'name': 'Player',
+        'team': 'Team', 
+        'position': 'Pos',
+        'total_z_score': 'Z-Score',
+        'games_played': 'GP'
+    }
+    
+    # Filter and rename columns
+    available_columns = [col for col in display_columns if col in roster_df.columns]
+    display_df = roster_df[available_columns].rename(columns=column_mapping)
+    
+    st.dataframe(display_df, use_container_width=True, hide_index=True)
+    
+    # Category analysis and strategic insights
+    col_analysis1, col_analysis2 = st.columns(2)
+    
+    with col_analysis1:
+        # Category strengths and weaknesses
+        render_category_indicators(category_analysis)
+        
+        # Punt strategy analysis
+        if punt_analysis:
+            render_punt_strategy_analysis(punt_analysis)
+    
+    with col_analysis2:
+        # Roster construction warnings
+        if len(roster_df) >= 3:  # Only show warnings if we have enough players
+            # We need to get the construction warnings from the CategoryAnalyzer
+            # This will be passed from the main draft interface
+            construction_warnings = st.session_state.get('construction_warnings', {})
+            if construction_warnings:
+                render_roster_construction_warnings(construction_warnings)
 
 
 def render_available_players(available_players: pd.DataFrame, player_pool_df: pd.DataFrame, season: str, engine):

@@ -35,8 +35,29 @@ html, body, [class*="css"] {
 .main .block-container {
     padding-top: 2rem;
     padding-bottom: 2rem;
-    max-width: 1400px;
+    max-width: none !important;
+    width: 100% !important;
     margin: 0 auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+/* Force wide layout */
+.css-18e3th9, .css-1d391kg {
+    max-width: none !important;
+    width: 100% !important;
+}
+
+/* Ensure full width for main content area */
+.css-1y4p8pa {
+    max-width: none !important;
+    width: 100% !important;
+}
+
+/* Full width for app container */
+.css-k1vhr4 {
+    max-width: none !important;
+    width: 100% !important;
 }
 
 /* ==========================================================================

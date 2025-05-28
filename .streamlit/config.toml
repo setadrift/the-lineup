@@ -9,8 +9,18 @@ enableXsrfProtection = false
 [browser]
 gatherUsageStats = false
 
+[ui]
+# Force wide mode layout
+hideTopBar = false
+hideSidebarNav = false
+
 [theme]
 primaryColor = "#FF6B35"
 backgroundColor = "#FFFFFF"
 secondaryBackgroundColor = "#F0F2F6"
-textColor = "#262730" 
+textColor = "#262730"
+font = "sans serif"
+
+# Layout configuration for full width
+[layout]
+wide = true 

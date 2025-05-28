@@ -41,6 +41,58 @@ def apply_main_styling():
     css_content = load_css(str(css_path))
     if css_content:
         st.markdown(f"<style>{css_content}</style>", unsafe_allow_html=True)
+    
+    # Additional CSS to force full width layout
+    force_wide_css = """
+    <style>
+    /* Force full width layout - override all Streamlit defaults */
+    .main .block-container {
+        max-width: none !important;
+        width: 100% !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    
+    /* Override Streamlit's default container classes */
+    .css-18e3th9, .css-1d391kg, .css-k1vhr4, .css-1y4p8pa {
+        max-width: none !important;
+        width: 100% !important;
+    }
+    
+    /* Ensure sidebar doesn't interfere with main content width */
+    .css-1lcbmhc {
+        max-width: none !important;
+        width: 100% !important;
+    }
+    
+    /* Force wide mode for all containers */
+    div[data-testid="stAppViewContainer"] {
+        max-width: none !important;
+        width: 100% !important;
+    }
+    
+    div[data-testid="stMainBlockContainer"] {
+        max-width: none !important;
+        width: 100% !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .main .block-container {
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
+        }
+        
+        div[data-testid="stMainBlockContainer"] {
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
+        }
+    }
+    </style>
+    """
+    st.markdown(force_wide_css, unsafe_allow_html=True)
 
 
 def apply_custom_css(css_content: str):
