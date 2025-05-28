@@ -229,7 +229,7 @@ def get_player_comparison_data(player_id: int, player_pool_df: pd.DataFrame,
         
         player_row = player_info.iloc[0]
         
-        # Get detailed stats from database
+        # Get detailed stats including advanced stats from database
         stats_query = """
         SELECT DISTINCT ON (ps.player_id)
             ps.player_id,
@@ -243,7 +243,15 @@ def get_player_comparison_data(player_id: int, player_pool_df: pd.DataFrame,
             ps.ft_pct,
             ps.three_pm,
             ps.games_played,
-            ps.minutes_per_game
+            ps.minutes_per_game,
+            -- Advanced stats
+            ps.age,
+            ps.usage_rate,
+            ps.true_shooting_pct,
+            ps.player_efficiency_rating,
+            ps.points_per_36,
+            ps.rebounds_per_36,
+            ps.assists_per_36
         FROM player_stats ps
         WHERE ps.season = %s AND ps.player_id = %s
         ORDER BY ps.player_id
@@ -275,6 +283,7 @@ def get_player_comparison_data(player_id: int, player_pool_df: pd.DataFrame,
         if not stats_df.empty:
             stats_row = stats_df.iloc[0]
             result.update({
+                # Basic stats
                 'points_per_game': stats_row.get('points_per_game', 0),
                 'rebounds_per_game': stats_row.get('rebounds_per_game', 0),
                 'assists_per_game': stats_row.get('assists_per_game', 0),
@@ -285,7 +294,15 @@ def get_player_comparison_data(player_id: int, player_pool_df: pd.DataFrame,
                 'ft_pct': stats_row.get('ft_pct', 0),
                 'three_pm': stats_row.get('three_pm', 0),
                 'games_played': stats_row.get('games_played', 0),
-                'minutes_per_game': stats_row.get('minutes_per_game', 0)
+                'minutes_per_game': stats_row.get('minutes_per_game', 0),
+                # Advanced stats
+                'age': stats_row.get('age', None),
+                'usage_rate': stats_row.get('usage_rate', None),
+                'true_shooting_pct': stats_row.get('true_shooting_pct', None),
+                'player_efficiency_rating': stats_row.get('player_efficiency_rating', None),
+                'points_per_36': stats_row.get('points_per_36', None),
+                'rebounds_per_36': stats_row.get('rebounds_per_36', None),
+                'assists_per_36': stats_row.get('assists_per_36', None)
             })
         
         return result
@@ -308,23 +325,75 @@ def get_historical_trends_comparison(player1_id: int, player2_id: int,
     Args:
         player1_id: First player's ID
         player2_id: Second player's ID
-        api_base_url: Base URL for the API
+        api_base_url: Base URL for the API (fallback to direct DB if API unavailable)
         
     Returns:
         Tuple of (player1_trends, player2_trends)
     """
     try:
-        # Get trends for player 1
+        # Try API first
         response1 = requests.get(f"{api_base_url}/api/historical/player/{player1_id}/sparklines?seasons_back=3", timeout=3)
-        player1_trends = response1.json() if response1.status_code == 200 else None
-        
-        # Get trends for player 2
         response2 = requests.get(f"{api_base_url}/api/historical/player/{player2_id}/sparklines?seasons_back=3", timeout=3)
-        player2_trends = response2.json() if response2.status_code == 200 else None
+        
+        if response1.status_code == 200 and response2.status_code == 200:
+            return response1.json(), response2.json()
+        
+    except:
+        pass
+    
+    # Fallback to direct database query if API is unavailable
+    try:
+        from app.db.connection import get_engine
+        import pandas as pd
+        
+        engine = get_engine()
+        
+        # Get last 3 seasons of data for both players
+        seasons = ["2021-22", "2022-23", "2023-24"]
+        
+        def get_player_trends(player_id: int) -> Optional[Dict]:
+            trends = {}
+            
+            for stat in ['points_per_game', 'rebounds_per_game', 'assists_per_game']:
+                query = """
+                SELECT season, {} as stat_value
+                FROM player_stats 
+                WHERE player_id = %s AND season = ANY(%s)
+                ORDER BY season
+                """.format(stat)
+                
+                df = pd.read_sql(query, engine, params=(player_id, seasons))
+                
+                if not df.empty:
+                    values = df['stat_value'].tolist()
+                    latest_value = values[-1] if values else 0
+                    
+                    # Simple trend calculation
+                    if len(values) >= 2:
+                        if values[-1] > values[-2] * 1.1:  # 10% increase
+                            trend = 'increasing'
+                        elif values[-1] < values[-2] * 0.9:  # 10% decrease
+                            trend = 'decreasing'
+                        else:
+                            trend = 'stable'
+                    else:
+                        trend = 'stable'
+                    
+                    trends[stat] = {
+                        'trend': trend,
+                        'latest_value': latest_value,
+                        'values': values
+                    }
+            
+            return trends if trends else None
+        
+        player1_trends = get_player_trends(player1_id)
+        player2_trends = get_player_trends(player2_id)
         
         return player1_trends, player2_trends
         
-    except:
+    except Exception as e:
+        print(f"Error getting trends from database: {e}")
         return None, None
 
 
@@ -443,10 +512,61 @@ def render_player_comparison_tool(available_players_df: pd.DataFrame, player_poo
         except (ValueError, TypeError):
             st.info("🤝 Unable to compare Z-Scores")
         
-        # Tabbed comparison
-        tab_stats, tab_zscore, tab_trends, tab_summary = st.tabs([
-            "📊 Season Stats", "⚡ Z-Score Analysis", "📈 Historical Trends", "📝 Summary"
+        # Create tabs for different views
+        tab_overview, tab_radar, tab_stats, tab_zscore, tab_advanced, tab_trends, tab_summary = st.tabs([
+            "📋 Overview", "📊 Radar Chart", "📈 Season Stats", "⚡ Z-Scores", "🔬 Advanced Stats", "📉 Trends", "📝 Summary"
         ])
+        
+        with tab_overview:
+            st.markdown("### 📋 Player Overview")
+            
+            # Basic info comparison
+            col_info1, col_info2 = st.columns(2)
+            
+            with col_info1:
+                adp_display = safe_format_float(player1_data['adp'], decimals=1) if player1_data['adp'] else 'N/A'
+                st.markdown(f"""
+                **{player1_data['name']}**
+                - **Team:** {player1_data['team']}
+                - **Position:** {player1_data['position']}
+                - **Total Z-Score:** {safe_format_float(player1_data['total_z_score'], decimals=2)}
+                - **ADP:** {adp_display}
+                """)
+            
+            with col_info2:
+                adp_display = safe_format_float(player2_data['adp'], decimals=1) if player2_data['adp'] else 'N/A'
+                st.markdown(f"""
+                **{player2_data['name']}**
+                - **Team:** {player2_data['team']}
+                - **Position:** {player2_data['position']}
+                - **Total Z-Score:** {safe_format_float(player2_data['total_z_score'], decimals=2)}
+                - **ADP:** {adp_display}
+                """)
+            
+            # Winner indicator
+            try:
+                z1 = float(player1_data.get('total_z_score', 0) or 0)
+                z2 = float(player2_data.get('total_z_score', 0) or 0)
+                
+                if z1 > z2:
+                    diff = safe_format_float(z1 - z2, decimals=2)
+                    st.success(f"🏆 **{player1_data['name']}** has a higher total Z-Score (+{diff})")
+                elif z2 > z1:
+                    diff = safe_format_float(z2 - z1, decimals=2)
+                    st.success(f"🏆 **{player2_data['name']}** has a higher total Z-Score (+{diff})")
+                else:
+                    st.info("🤝 Players have identical total Z-Scores")
+            except (ValueError, TypeError):
+                st.info("🤝 Unable to compare Z-Scores")
+        
+        with tab_radar:
+            st.markdown("### 📊 Radar Chart")
+            
+            # Create radar chart
+            fig_radar = create_comparison_radar_chart(
+                player1_data, player2_data, player1_name, player2_name
+            )
+            st.plotly_chart(fig_radar, use_container_width=True)
         
         with tab_stats:
             st.markdown("### 📊 Season Averages Comparison")
@@ -537,6 +657,148 @@ def render_player_comparison_tool(available_players_df: pd.DataFrame, player_poo
             
             st.dataframe(zscore_comparison, use_container_width=True, hide_index=True)
             st.caption("*Lower turnovers are better (negative z-score is good)")
+        
+        with tab_advanced:
+            st.markdown("### 🔬 Advanced Stats")
+            
+            # Check if advanced stats are available
+            advanced_stats_available = any([
+                'usage_rate' in player1_data, 'true_shooting_pct' in player1_data,
+                'player_efficiency_rating' in player1_data, 'points_per_36' in player1_data
+            ])
+            
+            if advanced_stats_available:
+                # Efficiency Metrics
+                st.markdown("#### ⚡ Efficiency Metrics")
+                
+                efficiency_comparison = pd.DataFrame({
+                    'Metric': ['Usage Rate', 'True Shooting %', 'Player Efficiency Rating'],
+                    player1_name: [
+                        safe_format_percentage(player1_data.get('usage_rate', 0)),
+                        safe_format_percentage(player1_data.get('true_shooting_pct', 0)),
+                        safe_format_float(player1_data.get('player_efficiency_rating', 0))
+                    ],
+                    player2_name: [
+                        safe_format_percentage(player2_data.get('usage_rate', 0)),
+                        safe_format_percentage(player2_data.get('true_shooting_pct', 0)),
+                        safe_format_float(player2_data.get('player_efficiency_rating', 0))
+                    ]
+                })
+                
+                st.dataframe(efficiency_comparison, use_container_width=True, hide_index=True)
+                
+                # Per-36 Stats
+                if 'points_per_36' in player1_data or 'points_per_36' in player2_data:
+                    st.markdown("#### 📊 Per-36 Minute Stats")
+                    
+                    per36_comparison = pd.DataFrame({
+                        'Stat': ['Points/36', 'Rebounds/36', 'Assists/36'],
+                        player1_name: [
+                            safe_format_float(player1_data.get('points_per_36', 0)),
+                            safe_format_float(player1_data.get('rebounds_per_36', 0)),
+                            safe_format_float(player1_data.get('assists_per_36', 0))
+                        ],
+                        player2_name: [
+                            safe_format_float(player2_data.get('points_per_36', 0)),
+                            safe_format_float(player2_data.get('rebounds_per_36', 0)),
+                            safe_format_float(player2_data.get('assists_per_36', 0))
+                        ]
+                    })
+                    
+                    st.dataframe(per36_comparison, use_container_width=True, hide_index=True)
+                
+                # Age and Durability
+                st.markdown("#### 🏃 Age & Durability")
+                
+                durability_comparison = pd.DataFrame({
+                    'Factor': ['Age', 'Games Played', 'Minutes/Game'],
+                    player1_name: [
+                        safe_format_float(player1_data.get('age', 0), decimals=0),
+                        safe_format_float(player1_data.get('games_played', 0), decimals=0),
+                        safe_format_float(player1_data.get('minutes_per_game', 0))
+                    ],
+                    player2_name: [
+                        safe_format_float(player2_data.get('age', 0), decimals=0),
+                        safe_format_float(player2_data.get('games_played', 0), decimals=0),
+                        safe_format_float(player2_data.get('minutes_per_game', 0))
+                    ]
+                })
+                
+                st.dataframe(durability_comparison, use_container_width=True, hide_index=True)
+                
+                # Advanced insights
+                st.markdown("#### 💡 Advanced Insights")
+                
+                insights = []
+                
+                # Usage rate comparison
+                try:
+                    usage1 = float(player1_data.get('usage_rate', 0) or 0)
+                    usage2 = float(player2_data.get('usage_rate', 0) or 0)
+                    
+                    if usage1 > 0.28 or usage2 > 0.28:
+                        high_usage_player = player1_name if usage1 > usage2 else player2_name
+                        insights.append(f"🎯 **{high_usage_player}** has higher usage rate - more involved in offense")
+                except (ValueError, TypeError):
+                    pass
+                
+                # Efficiency comparison
+                try:
+                    ts1 = float(player1_data.get('true_shooting_pct', 0) or 0)
+                    ts2 = float(player2_data.get('true_shooting_pct', 0) or 0)
+                    
+                    if abs(ts1 - ts2) > 0.05:  # 5% difference
+                        efficient_player = player1_name if ts1 > ts2 else player2_name
+                        insights.append(f"🎯 **{efficient_player}** is significantly more efficient shooter")
+                except (ValueError, TypeError):
+                    pass
+                
+                # Age comparison
+                try:
+                    age1 = float(player1_data.get('age', 0) or 0)
+                    age2 = float(player2_data.get('age', 0) or 0)
+                    
+                    if abs(age1 - age2) >= 3:  # 3+ year difference
+                        younger_player = player1_name if age1 < age2 else player2_name
+                        insights.append(f"🌟 **{younger_player}** is significantly younger - more upside potential")
+                except (ValueError, TypeError):
+                    pass
+                
+                # Games played comparison
+                try:
+                    gp1 = float(player1_data.get('games_played', 0) or 0)
+                    gp2 = float(player2_data.get('games_played', 0) or 0)
+                    
+                    if gp1 >= 70 and gp2 < 60:
+                        insights.append(f"💪 **{player1_name}** has better durability (70+ games)")
+                    elif gp2 >= 70 and gp1 < 60:
+                        insights.append(f"💪 **{player2_name}** has better durability (70+ games)")
+                except (ValueError, TypeError):
+                    pass
+                
+                if insights:
+                    for insight in insights:
+                        st.markdown(insight)
+                else:
+                    st.info("Players have similar advanced metrics")
+                
+                # Explanations
+                with st.expander("📚 Advanced Stats Explained"):
+                    st.markdown("""
+                    **Usage Rate**: Percentage of team plays used by player while on court
+                    - Elite: 28%+, Good: 25-28%, Average: 20-25%
+                    
+                    **True Shooting %**: Shooting efficiency accounting for 3-pointers and free throws
+                    - Elite: 60%+, Good: 55-60%, Average: 52-55%
+                    
+                    **Player Efficiency Rating (PER)**: Overall efficiency metric
+                    - Elite: 25+, Very Good: 20-25, Average: 15, Below Average: <15
+                    
+                    **Per-36 Stats**: Statistics projected to 36 minutes of play
+                    - Useful for comparing players with different playing time
+                    """)
+            else:
+                st.info("Advanced stats not available for these players. Run the advanced feature generation to see these metrics.")
         
         with tab_trends:
             st.markdown("### 📈 Historical Trends Comparison")

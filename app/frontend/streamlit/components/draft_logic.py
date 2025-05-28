@@ -403,11 +403,81 @@ class PickSuggestionEngine:
                     reasoning_parts.append(f"Adds {main_position} depth")
                     priority_score += 8
             
-            # 5. Z-Score Tier Analysis
+            # 5. Z-Score Tier Analysis (Enhanced with Advanced Stats)
             z_score = player['total_z_score']
             next_player_z = top_players.iloc[min(idx + 1, len(top_players) - 1)]['total_z_score'] if idx < len(top_players) - 1 else 0
             z_drop = z_score - next_player_z
             
+            # Advanced stats bonus evaluation
+            advanced_bonus = 0
+            advanced_insights = []
+            
+            # Usage rate evaluation
+            if 'usage_rate' in player and pd.notna(player['usage_rate']):
+                usage = player['usage_rate']
+                if usage > 0.28:  # High usage (28%+)
+                    advanced_bonus += 3
+                    advanced_insights.append("High usage player")
+                elif usage > 0.25:  # Above average usage
+                    advanced_bonus += 1
+                    advanced_insights.append("Above average usage")
+            
+            # Efficiency evaluation
+            if 'true_shooting_pct' in player and pd.notna(player['true_shooting_pct']):
+                ts_pct = player['true_shooting_pct']
+                if ts_pct > 0.60:  # Elite efficiency (60%+ TS)
+                    advanced_bonus += 4
+                    advanced_insights.append("Elite shooting efficiency")
+                elif ts_pct > 0.55:  # Good efficiency
+                    advanced_bonus += 2
+                    advanced_insights.append("Good shooting efficiency")
+                elif ts_pct < 0.50:  # Poor efficiency
+                    advanced_bonus -= 2
+                    advanced_insights.append("Below average efficiency")
+            
+            # PER evaluation
+            if 'player_efficiency_rating' in player and pd.notna(player['player_efficiency_rating']):
+                per = player['player_efficiency_rating']
+                if per > 25:  # Elite PER
+                    advanced_bonus += 3
+                    advanced_insights.append("Elite PER")
+                elif per > 20:  # Very good PER
+                    advanced_bonus += 2
+                    advanced_insights.append("Strong PER")
+                elif per > 15:  # Above average PER
+                    advanced_bonus += 1
+            
+            # Age factor for upside/decline risk
+            if 'age' in player and pd.notna(player['age']):
+                age = player['age']
+                if age <= 25:
+                    advanced_bonus += 2
+                    advanced_insights.append("Young with upside")
+                elif age <= 27:
+                    advanced_bonus += 1
+                    advanced_insights.append("Prime age")
+                elif age >= 32:
+                    advanced_bonus -= 1
+                    advanced_insights.append("Veteran (age risk)")
+            
+            # Games played consistency
+            if 'games_played' in player and pd.notna(player['games_played']):
+                gp = player['games_played']
+                if gp >= 70:
+                    advanced_bonus += 1
+                    advanced_insights.append("Durable (70+ games)")
+                elif gp < 50:
+                    advanced_bonus -= 2
+                    advanced_insights.append("Injury concerns")
+            
+            # Apply advanced bonus to priority score
+            priority_score += advanced_bonus
+            
+            # Add advanced insights to reasoning
+            if advanced_insights:
+                reasoning_parts.extend(advanced_insights[:2])  # Limit to top 2 insights
+            
+            # Traditional tier analysis
             if z_score > 10:
                 reasoning_parts.append("Elite tier player")
                 priority_score += 15

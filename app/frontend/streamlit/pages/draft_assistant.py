@@ -944,7 +944,7 @@ if draft_type == "Mock Draft":
                 with st.expander("📊 View Detailed Player Stats & Z-Scores"):
                     if not stats_df.empty:
                         # Create tabs for better mobile experience
-                        tab1, tab2 = st.tabs(["📈 Season Averages", "⚡ Z-Score Breakdown"])
+                        tab1, tab2, tab3 = st.tabs(["📈 Season Averages", "⚡ Z-Score Breakdown", "🔬 Advanced Stats"])
                         
                         with tab1:
                             detailed_display = enhanced_df[[
@@ -986,6 +986,57 @@ if draft_type == "Mock Draft":
                             })
                             
                             st.dataframe(z_score_display, use_container_width=True, hide_index=True)
+                        
+                        with tab3:
+                            # Show advanced stats if available
+                            advanced_cols = ['Player', 'Team', 'Position']
+                            advanced_rename = {}
+                            
+                            # Check which advanced stats are available
+                            if 'age' in enhanced_df.columns:
+                                advanced_cols.append('age')
+                                advanced_rename['age'] = 'Age'
+                            if 'usage_rate' in enhanced_df.columns:
+                                advanced_cols.append('usage_rate')
+                                advanced_rename['usage_rate'] = 'Usage%'
+                            if 'true_shooting_pct' in enhanced_df.columns:
+                                advanced_cols.append('true_shooting_pct')
+                                advanced_rename['true_shooting_pct'] = 'TS%'
+                            if 'player_efficiency_rating' in enhanced_df.columns:
+                                advanced_cols.append('player_efficiency_rating')
+                                advanced_rename['player_efficiency_rating'] = 'PER'
+                            if 'points_per_36' in enhanced_df.columns:
+                                advanced_cols.extend(['points_per_36', 'rebounds_per_36', 'assists_per_36'])
+                                advanced_rename.update({
+                                    'points_per_36': 'PTS/36',
+                                    'rebounds_per_36': 'REB/36',
+                                    'assists_per_36': 'AST/36'
+                                })
+                            
+                            if len(advanced_cols) > 3:  # More than just Player, Team, Position
+                                advanced_display = enhanced_df[advanced_cols].rename(columns=advanced_rename)
+                                
+                                # Format percentage columns
+                                for col in advanced_display.columns:
+                                    if col in ['Usage%', 'TS%']:
+                                        advanced_display[col] = advanced_display[col].apply(
+                                            lambda x: f"{x:.1%}" if pd.notnull(x) else "N/A"
+                                        )
+                                    elif col in ['PER', 'PTS/36', 'REB/36', 'AST/36']:
+                                        advanced_display[col] = advanced_display[col].apply(
+                                            lambda x: f"{x:.1f}" if pd.notnull(x) else "N/A"
+                                        )
+                                
+                                st.dataframe(advanced_display, use_container_width=True, hide_index=True)
+                                
+                                # Add explanations
+                                st.markdown("**Advanced Stats Explained:**")
+                                st.markdown("- **Usage%**: Percentage of team plays used by player while on court")
+                                st.markdown("- **TS%**: True Shooting % (accounts for 3-pointers and free throws)")
+                                st.markdown("- **PER**: Player Efficiency Rating (league average ≈ 15)")
+                                st.markdown("- **Per-36**: Stats projected to 36 minutes played")
+                            else:
+                                st.info("Advanced stats will be available once the enhanced feature generation is complete.")
                     else:
                         st.write("No detailed stats available for these players.")
             else:

@@ -38,6 +38,45 @@ class PlayerStats(Base):
     fg_pct = Column(Float)
     ft_pct = Column(Float)
     three_pm = Column(Float)
+    
+    # Advanced Stats
+    age = Column(Integer, nullable=True)
+    usage_rate = Column(Float, nullable=True)  # Usage percentage
+    true_shooting_pct = Column(Float, nullable=True)  # True shooting percentage
+    effective_fg_pct = Column(Float, nullable=True)  # Effective field goal percentage
+    player_efficiency_rating = Column(Float, nullable=True)  # PER
+    
+    # Per-36 minute stats
+    points_per_36 = Column(Float, nullable=True)
+    rebounds_per_36 = Column(Float, nullable=True)
+    assists_per_36 = Column(Float, nullable=True)
+    steals_per_36 = Column(Float, nullable=True)
+    blocks_per_36 = Column(Float, nullable=True)
+    turnovers_per_36 = Column(Float, nullable=True)
+    
+    # Advanced shooting metrics
+    three_point_attempt_rate = Column(Float, nullable=True)  # 3PAr
+    free_throw_rate = Column(Float, nullable=True)  # FTr
+    
+    # Rebounding percentages
+    offensive_rebound_pct = Column(Float, nullable=True)
+    defensive_rebound_pct = Column(Float, nullable=True)
+    total_rebound_pct = Column(Float, nullable=True)
+    
+    # Other advanced metrics
+    assist_pct = Column(Float, nullable=True)
+    steal_pct = Column(Float, nullable=True)
+    block_pct = Column(Float, nullable=True)
+    turnover_pct = Column(Float, nullable=True)
+    
+    # Win shares and advanced impact metrics
+    offensive_win_shares = Column(Float, nullable=True)
+    defensive_win_shares = Column(Float, nullable=True)
+    win_shares = Column(Float, nullable=True)
+    win_shares_per_48 = Column(Float, nullable=True)
+    box_plus_minus = Column(Float, nullable=True)
+    value_over_replacement = Column(Float, nullable=True)  # VORP
+    
     last_updated = Column(DateTime, default=datetime.datetime.utcnow)
 
 class PlayerGameStats(Base):
