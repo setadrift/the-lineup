@@ -5,6 +5,15 @@ Entry point for Streamlit Cloud deployment
 
 import os
 import sys
+import streamlit as st
+
+# Configure page for wide layout
+st.set_page_config(
+    page_title="The Lineup - Fantasy Basketball Draft Assistant",
+    page_icon="🏀",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 # Add the project root to the Python path
 project_root = os.path.dirname(os.path.abspath(__file__))
