@@ -591,8 +591,11 @@ def render_available_players(available_players: pd.DataFrame, player_pool_df: pd
                         st.error(f"Historical trends component not available: {e}")
                         st.markdown("*Historical trends analysis requires the backend API to be running.*")
                     except Exception as e:
-                        st.warning("Historical trends temporarily unavailable")
-                        st.markdown("*Please ensure the backend API is running at http://localhost:8000*")
+                        st.error(f"Historical trends error: {str(e)}")
+                        st.markdown(f"*Error details: {type(e).__name__}: {str(e)}*")
+                        # Show traceback for debugging
+                        import traceback
+                        st.code(traceback.format_exc())
                 
                 with tab4:
                     # Player comparison tab - import and use our new component
@@ -603,8 +606,11 @@ def render_available_players(available_players: pd.DataFrame, player_pool_df: pd
                         st.error(f"Player comparison component not available: {e}")
                         st.markdown("*Player comparison tool requires additional dependencies.*")
                     except Exception as e:
-                        st.warning("Player comparison tool temporarily unavailable")
-                        st.markdown("*Please ensure all dependencies are installed and the backend API is running.*")
+                        st.error(f"Player comparison tool error: {str(e)}")
+                        st.markdown(f"*Error details: {type(e).__name__}: {str(e)}*")
+                        # Show traceback for debugging
+                        import traceback
+                        st.code(traceback.format_exc())
             else:
                 st.write("No detailed stats available for these players.")
 

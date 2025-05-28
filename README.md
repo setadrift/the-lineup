@@ -97,5 +97,29 @@ python run_draft_v2.py
 
 When the backend is running, visit http://localhost:8000/docs for interactive API documentation.
 
+## ☁️ Streamlit Cloud Deployment
+
+For cloud deployment using Streamlit Cloud:
+
+### Prerequisites
+- GitHub repository with this code
+- PostgreSQL database (Supabase recommended)
+- Database populated with NBA data
+
+### Deployment Steps
+1. **Connect to Streamlit Cloud**: Go to [share.streamlit.io](https://share.streamlit.io)
+2. **Select Repository**: Choose this repository from your GitHub
+3. **Set Main File**: Use `streamlit_app.py` as the main file
+4. **Configure Environment Variables**:
+   - Add `DATABASE_URL` with your PostgreSQL connection string
+   - Format: `postgresql://username:password@host:port/database`
+5. **Deploy**: Click deploy and wait for build completion
+
+### Cloud Features
+- ✅ Core draft assistant functionality
+- ✅ Player pool browsing and z-score analysis  
+- ✅ Basic player comparison and radar charts
+- ⚠️ Historical trends (limited to database fallback)
+
 ```bash
 uvicorn app.main:app --reload

@@ -566,7 +566,7 @@ def render_player_comparison_tool(available_players_df: pd.DataFrame, player_poo
             fig_radar = create_comparison_radar_chart(
                 player1_data, player2_data, player1_name, player2_name
             )
-            st.plotly_chart(fig_radar, use_container_width=True)
+            st.plotly_chart(fig_radar, use_container_width=True, key="radar_chart_tab")
         
         with tab_stats:
             st.markdown("### 📊 Season Averages Comparison")
@@ -578,7 +578,7 @@ def render_player_comparison_tool(available_players_df: pd.DataFrame, player_poo
                 fig_stats = create_stat_comparison_chart(
                     player1_data, player2_data, player1_name, player2_name
                 )
-                st.plotly_chart(fig_stats, use_container_width=True)
+                st.plotly_chart(fig_stats, use_container_width=True, key="stats_chart_tab")
                 
                 # Detailed stats table
                 st.markdown("#### Detailed Statistics")
@@ -624,7 +624,7 @@ def render_player_comparison_tool(available_players_df: pd.DataFrame, player_poo
             fig_radar = create_comparison_radar_chart(
                 player1_data, player2_data, player1_name, player2_name
             )
-            st.plotly_chart(fig_radar, use_container_width=True)
+            st.plotly_chart(fig_radar, use_container_width=True, key="zscore_radar_chart_tab")
             
             # Z-score table
             st.markdown("#### Z-Score Breakdown")
@@ -782,21 +782,22 @@ def render_player_comparison_tool(available_players_df: pd.DataFrame, player_poo
                 else:
                     st.info("Players have similar advanced metrics")
                 
-                # Explanations
-                with st.expander("📚 Advanced Stats Explained"):
-                    st.markdown("""
-                    **Usage Rate**: Percentage of team plays used by player while on court
-                    - Elite: 28%+, Good: 25-28%, Average: 20-25%
-                    
-                    **True Shooting %**: Shooting efficiency accounting for 3-pointers and free throws
-                    - Elite: 60%+, Good: 55-60%, Average: 52-55%
-                    
-                    **Player Efficiency Rating (PER)**: Overall efficiency metric
-                    - Elite: 25+, Very Good: 20-25, Average: 15, Below Average: <15
-                    
-                    **Per-36 Stats**: Statistics projected to 36 minutes of play
-                    - Useful for comparing players with different playing time
-                    """)
+                # Explanations - using markdown instead of expander to avoid nesting
+                st.markdown("---")
+                st.markdown("#### 📚 Advanced Stats Explained")
+                st.markdown("""
+                **Usage Rate**: Percentage of team plays used by player while on court
+                - Elite: 28%+, Good: 25-28%, Average: 20-25%
+                
+                **True Shooting %**: Shooting efficiency accounting for 3-pointers and free throws
+                - Elite: 60%+, Good: 55-60%, Average: 52-55%
+                
+                **Player Efficiency Rating (PER)**: Overall efficiency metric
+                - Elite: 25+, Very Good: 20-25, Average: 15, Below Average: <15
+                
+                **Per-36 Stats**: Statistics projected to 36 minutes of play
+                - Useful for comparing players with different playing time
+                """)
             else:
                 st.info("Advanced stats not available for these players. Run the advanced feature generation to see these metrics.")
         
