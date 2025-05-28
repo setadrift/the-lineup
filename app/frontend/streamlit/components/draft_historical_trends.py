@@ -162,10 +162,13 @@ def render_draft_historical_trends_tab(available_players_df: pd.DataFrame,
         selected_player = st.selectbox(
             "🔍 Select a player to analyze:",
             options=player_options['display'].tolist(),
-            help="Choose a player to view their historical performance trends"
+            help="Choose a player and click 'Analyze Trends' to view their historical performance"
         )
         
-        if selected_player:
+        # Add confirmation button
+        analyze_clicked = st.button("📈 Analyze Trends", key="analyze_trends", type="primary")
+        
+        if selected_player and analyze_clicked:
             # Extract player info
             selected_idx = player_options[player_options['display'] == selected_player].index[0]
             player_id = player_options.loc[selected_idx, 'player_id']
@@ -173,16 +176,36 @@ def render_draft_historical_trends_tab(available_players_df: pd.DataFrame,
             
             # Get player info from the available players df
             player_info = available_players_df[available_players_df['player_id'] == player_id].iloc[0]
+            
+            # Store in session state to persist the analysis
+            st.session_state.trends_player_id = player_id
+            st.session_state.trends_player_name = player_name
+            st.session_state.trends_player_info = player_info
     
     with col_info:
         if selected_player:
+            # Show basic info even before analysis
+            selected_idx = player_options[player_options['display'] == selected_player].index[0]
+            player_info = available_players_df[available_players_df['player_id'] == player_options.loc[selected_idx, 'player_id']].iloc[0]
+            
             st.markdown("**Player Info:**")
             st.markdown(f"**Team:** {player_info.get('team', 'N/A')}")
             st.markdown(f"**Position:** {player_info.get('position', 'N/A')}")
             st.markdown(f"**Z-Score:** {player_info.get('total_z_score', 0):.2f}")
             st.markdown(f"**ADP:** {player_info.get('adp', 'N/A')}")
     
-    if selected_player:
+    # Show analysis if player has been confirmed
+    if (hasattr(st.session_state, 'trends_player_id') and 
+        hasattr(st.session_state, 'trends_player_name') and 
+        hasattr(st.session_state, 'trends_player_info')):
+        
+        player_id = st.session_state.trends_player_id
+        player_name = st.session_state.trends_player_name
+        player_info = st.session_state.trends_player_info
+        
+        st.markdown("---")
+        st.markdown(f"### 📊 Trends Analysis for {player_name}")
+        
         with st.spinner("Loading historical trends..."):
             trend_data = render_player_trend_summary(player_id, player_name, api_base_url)
             

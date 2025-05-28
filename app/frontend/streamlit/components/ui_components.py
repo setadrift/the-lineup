@@ -315,14 +315,14 @@ def display_pick_preview(suggestion: Dict[str, Any]):
 
 def render_player_selection(available_players: pd.DataFrame, suggestions: List[Dict[str, Any]]) -> Optional[str]:
     """
-    Render player selection interface.
+    Render player selection interface with confirmation button.
     
     Args:
         available_players: DataFrame of available players
         suggestions: List of pick suggestions
         
     Returns:
-        Selected player name or None
+        Selected player name if confirmed, None otherwise
     """
     col_pick1, col_pick2 = st.columns([3, 1])
     
@@ -338,7 +338,7 @@ def render_player_selection(available_players: pd.DataFrame, suggestions: List[D
             "🏀 Select a player to draft:", 
             player_options["name"],
             index=default_index,
-            help="Top AI suggestion is pre-selected"
+            help="Browse players and click 'Draft Player' to confirm your selection"
         )
     
     with col_pick2:

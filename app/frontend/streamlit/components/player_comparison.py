@@ -424,6 +424,12 @@ def render_player_comparison_tool(available_players_df: pd.DataFrame, player_poo
     player_options = available_players_df[['player_id', 'name', 'team', 'position']].copy()
     player_options['display'] = player_options['name'] + " (" + player_options['team'] + " - " + player_options['position'] + ")"
     
+    # Initialize session state for selected players
+    if "comparison_player1" not in st.session_state:
+        st.session_state.comparison_player1 = None
+    if "comparison_player2" not in st.session_state:
+        st.session_state.comparison_player2 = None
+    
     with col_player1:
         st.markdown("#### 🏀 Player 1")
         selected_player1 = st.selectbox(
@@ -433,10 +439,19 @@ def render_player_comparison_tool(available_players_df: pd.DataFrame, player_poo
             help="Select the first player for comparison"
         )
         
-        if selected_player1:
-            player1_idx = player_options[player_options['display'] == selected_player1].index[0]
-            player1_id = player_options.loc[player1_idx, 'player_id']
-            player1_name = player_options.loc[player1_idx, 'name']
+        if st.button("✅ Confirm Player 1", key="confirm_player1", type="secondary"):
+            if selected_player1:
+                player1_idx = player_options[player_options['display'] == selected_player1].index[0]
+                st.session_state.comparison_player1 = {
+                    'id': player_options.loc[player1_idx, 'player_id'],
+                    'name': player_options.loc[player1_idx, 'name'],
+                    'display': selected_player1
+                }
+                st.success(f"✅ Player 1 confirmed: {st.session_state.comparison_player1['name']}")
+        
+        # Show current selection
+        if st.session_state.comparison_player1:
+            st.info(f"**Selected:** {st.session_state.comparison_player1['name']}")
     
     with col_vs:
         st.markdown("#### ")
@@ -451,13 +466,53 @@ def render_player_comparison_tool(available_players_df: pd.DataFrame, player_poo
             help="Select the second player for comparison"
         )
         
-        if selected_player2:
-            player2_idx = player_options[player_options['display'] == selected_player2].index[0]
-            player2_id = player_options.loc[player2_idx, 'player_id']
-            player2_name = player_options.loc[player2_idx, 'name']
+        if st.button("✅ Confirm Player 2", key="confirm_player2", type="secondary"):
+            if selected_player2:
+                player2_idx = player_options[player_options['display'] == selected_player2].index[0]
+                st.session_state.comparison_player2 = {
+                    'id': player_options.loc[player2_idx, 'player_id'],
+                    'name': player_options.loc[player2_idx, 'name'],
+                    'display': selected_player2
+                }
+                st.success(f"✅ Player 2 confirmed: {st.session_state.comparison_player2['name']}")
+        
+        # Show current selection
+        if st.session_state.comparison_player2:
+            st.info(f"**Selected:** {st.session_state.comparison_player2['name']}")
     
-    # Only proceed if both players are selected and different
-    if selected_player1 and selected_player2 and selected_player1 != selected_player2:
+    # Add a clear selections button
+    st.markdown("---")
+    col_clear, col_compare = st.columns([1, 1])
+    
+    with col_clear:
+        if st.button("🗑️ Clear Selections", key="clear_selections"):
+            st.session_state.comparison_player1 = None
+            st.session_state.comparison_player2 = None
+            st.rerun()
+    
+    with col_compare:
+        # Show compare button only when both players are selected
+        if st.session_state.comparison_player1 and st.session_state.comparison_player2:
+            if st.session_state.comparison_player1['id'] == st.session_state.comparison_player2['id']:
+                st.warning("⚠️ Please select two different players")
+            else:
+                compare_clicked = st.button("🔍 Compare Players", key="compare_players", type="primary")
+        else:
+            st.info("Select and confirm both players to compare")
+            compare_clicked = False
+    
+    # Only proceed if both players are confirmed and compare button is clicked
+    if (st.session_state.comparison_player1 and st.session_state.comparison_player2 and 
+        st.session_state.comparison_player1['id'] != st.session_state.comparison_player2['id'] and
+        (compare_clicked or st.session_state.get('show_comparison', False))):
+        
+        # Set flag to keep showing comparison
+        st.session_state.show_comparison = True
+        
+        player1_id = st.session_state.comparison_player1['id']
+        player2_id = st.session_state.comparison_player2['id']
+        player1_name = st.session_state.comparison_player1['name']
+        player2_name = st.session_state.comparison_player2['name']
         
         # Get comprehensive data for both players
         with st.spinner("Loading player data..."):
@@ -926,4 +981,4 @@ def render_player_comparison_tool(available_players_df: pd.DataFrame, player_poo
     elif selected_player1 and selected_player2 and selected_player1 == selected_player2:
         st.warning("⚠️ Please select two different players to compare.")
     else:
-        st.info("👆 Select two players above to begin comparison.") 
+        st.info("👆 Select and confirm two players above to begin comparison.") 

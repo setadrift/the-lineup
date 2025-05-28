@@ -585,8 +585,6 @@ def initialize_draft_state(num_teams: int, draft_position: int) -> DraftState:
             current_state.draft_position != draft_position or
             current_state.user_team_id != draft_position):
             needs_reinit = True
-            # Debug info to help verify the fix is working
-            st.info(f"🔄 Draft configuration changed - reinitializing draft state. New position: {draft_position}")
     
     if needs_reinit:
         st.session_state.draft_state = DraftState(num_teams, draft_position)
