@@ -8,14 +8,6 @@ import sys
 import pandas as pd
 import streamlit as st
 
-# Page config MUST be first Streamlit command
-st.set_page_config(
-    page_title="The Lineup - Draft Assistant",
-    page_icon="🏀",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
 # Setup path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../"))
 sys.path.insert(0, project_root)
