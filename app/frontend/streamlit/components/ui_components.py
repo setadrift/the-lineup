@@ -1107,4 +1107,619 @@ def render_feature_highlights():
                 </div>
             </div>
         </div>
-        """, unsafe_allow_html=True) 
+        """, unsafe_allow_html=True)
+
+
+def render_draft_recap_analytics(analytics_data: Dict[str, Any]):
+    """
+    Render comprehensive draft recap analytics dashboard.
+    
+    Args:
+        analytics_data: Dictionary from DraftAnalytics.generate_draft_recap()
+    """
+    st.markdown("""
+    <div style="
+        background: linear-gradient(135deg, #FF6B35, #F7931E);
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        text-align: center;
+        box-shadow: 0 8px 32px rgba(255, 107, 53, 0.3);
+    ">
+        <h1 style="margin: 0 0 1rem 0; color: white;">📊 Draft Recap Analytics</h1>
+        <p style="font-size: 1.2rem; margin: 0; opacity: 0.95;">
+            Comprehensive post-draft analysis and team projections
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Extract data
+    team_analyses = analytics_data.get('team_analyses', {})
+    league_stats = analytics_data.get('league_stats', {})
+    league_insights = analytics_data.get('league_insights', {})
+    competitive_balance = analytics_data.get('competitive_balance', {})
+    strategic_insights = analytics_data.get('strategic_insights', {})
+    user_team_id = analytics_data.get('user_team_id', 1)
+    
+    # Create main dashboard tabs
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "🏆 League Overview", 
+        "📊 Team Projections", 
+        "⚖️ Competitive Balance", 
+        "🎯 Strategic Analysis",
+        "📈 Advanced Metrics"
+    ])
+    
+    with tab1:
+        render_league_overview(league_stats, league_insights, competitive_balance, user_team_id)
+    
+    with tab2:
+        render_team_projections(team_analyses, user_team_id)
+    
+    with tab3:
+        render_competitive_balance_analysis(competitive_balance, team_analyses)
+    
+    with tab4:
+        render_strategic_analysis(strategic_insights, team_analyses, user_team_id)
+    
+    with tab5:
+        render_advanced_metrics_dashboard(team_analyses, league_insights)
+
+
+def render_league_overview(league_stats: Dict[str, Any], league_insights: Dict[str, Any], 
+                          competitive_balance: Dict[str, Any], user_team_id: int):
+    """Render league overview section."""
+    
+    st.markdown("### 🏆 League Overview")
+    
+    # Key league metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric(
+            "🏀 Total Teams", 
+            league_stats.get('teams', 0)
+        )
+    
+    with col2:
+        st.metric(
+            "📋 Total Picks", 
+            league_stats.get('total_picks', 0)
+        )
+    
+    with col3:
+        st.metric(
+            "🔄 Rounds", 
+            league_stats.get('rounds_completed', 0)
+        )
+    
+    with col4:
+        competitiveness = competitive_balance.get('competitiveness', 'Unknown')
+        balance_score = competitive_balance.get('balance_score', 0)
+        st.metric(
+            "⚖️ League Balance", 
+            competitiveness,
+            f"{balance_score:.0f}/100"
+        )
+    
+    st.markdown("---")
+    
+    # League standings and insights
+    col_standings, col_insights = st.columns([1, 1])
+    
+    with col_standings:
+        st.markdown("#### 🥇 League Standings")
+        
+        user_standing = league_insights.get('user_standing', {})
+        league_leaders = league_insights.get('league_leaders', {})
+        
+        if user_standing:
+            user_rank = user_standing.get('rank', 'N/A')
+            total_teams = user_standing.get('total_teams', 0)
+            percentile = user_standing.get('percentile', 0)
+            
+            # User team highlight
+            if user_rank == 1:
+                rank_color = "#28a745"
+                rank_emoji = "🥇"
+            elif user_rank <= 3:
+                rank_color = "#ffc107"
+                rank_emoji = "🥈" if user_rank == 2 else "🥉"
+            elif percentile >= 50:
+                rank_color = "#17a2b8"
+                rank_emoji = "📈"
+            else:
+                rank_color = "#dc3545"
+                rank_emoji = "📉"
+            
+            st.markdown(f"""
+            <div style="
+                background: linear-gradient(135deg, {rank_color}15, {rank_color}05);
+                border: 1px solid {rank_color}40;
+                border-left: 4px solid {rank_color};
+                border-radius: 8px;
+                padding: 1rem;
+                margin: 0.5rem 0;
+            ">
+                <div style="font-size: 1.2rem; font-weight: 600; margin-bottom: 0.5rem;">
+                    {rank_emoji} <strong>Your Team Ranking</strong>
+                </div>
+                <div style="font-size: 1rem;">
+                    <strong>#{user_rank}</strong> out of {total_teams} teams<br>
+                    <em>{percentile:.0f}th percentile</em>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # League leaders
+        if league_leaders:
+            best_team = league_leaders.get('best_team', 'N/A')
+            best_score = league_leaders.get('best_score', 0)
+            worst_team = league_leaders.get('worst_team', 'N/A')
+            worst_score = league_leaders.get('worst_score', 0)
+            
+            st.markdown(f"""
+            **🏆 League Champion:** Team {best_team} ({best_score:.0f} pts)  
+            **📉 Needs Work:** Team {worst_team} ({worst_score:.0f} pts)
+            """)
+    
+    with col_insights:
+        st.markdown("#### 📊 League Averages")
+        
+        league_averages = league_insights.get('league_averages', {})
+        
+        if league_averages:
+            avg_total_z = league_averages.get('total_z_score', 0)
+            avg_player_z = league_averages.get('avg_z_score_per_player', 0)
+            avg_projection = league_averages.get('projection_score', 0)
+            
+            st.metric("📈 Avg Team Z-Score", f"{avg_total_z:.1f}")
+            st.metric("👤 Avg Player Z-Score", f"{avg_player_z:.2f}")
+            st.metric("🎯 Avg Projection", f"{avg_projection:.0f}/100")
+        
+        # Category leaders
+        st.markdown("#### 🏅 Category Leaders")
+        category_leaders = league_insights.get('category_leaders', {})
+        
+        if category_leaders:
+            # Show top 3 category leaders
+            leader_display = []
+            for i, (cat, leader_info) in enumerate(list(category_leaders.items())[:3]):
+                team_id = leader_info.get('team_id', 'N/A')
+                cat_name = leader_info.get('category_name', cat)
+                leader_display.append(f"**{cat_name}:** Team {team_id}")
+            
+            st.markdown("<br>".join(leader_display), unsafe_allow_html=True)
+
+
+def render_team_projections(team_analyses: Dict[int, Dict], user_team_id: int):
+    """Render team projections and grades."""
+    
+    st.markdown("### 📊 Team Projections & Grades")
+    
+    if not team_analyses:
+        st.info("No team data available for analysis.")
+        return
+    
+    # Sort teams by projection score
+    sorted_teams = sorted(
+        team_analyses.items(), 
+        key=lambda x: x[1]['team_projection']['final_score'], 
+        reverse=True
+    )
+    
+    # Create team projection cards
+    for rank, (team_id, analysis) in enumerate(sorted_teams, 1):
+        team_stats = analysis.get('team_stats', {})
+        team_projection = analysis.get('team_projection', {})
+        position_analysis = analysis.get('position_analysis', {})
+        
+        is_user_team = team_id == user_team_id
+        
+        # Determine card styling based on grade
+        grade = team_projection.get('grade', 'F')
+        final_score = team_projection.get('final_score', 0)
+        outlook = team_projection.get('outlook', 'Unknown')
+        
+        if grade.startswith('A'):
+            card_color = "#28a745"
+            grade_emoji = "🏆"
+        elif grade.startswith('B'):
+            card_color = "#17a2b8"
+            grade_emoji = "📈"
+        elif grade.startswith('C'):
+            card_color = "#ffc107"
+            grade_emoji = "⚖️"
+        elif grade.startswith('D'):
+            card_color = "#fd7e14"
+            grade_emoji = "📉"
+        else:
+            card_color = "#dc3545"
+            grade_emoji = "🚨"
+        
+        # Special styling for user team
+        user_badge = " 👤 YOUR TEAM" if is_user_team else ""
+        
+        # Use simpler HTML structure that Streamlit can handle
+        st.markdown(f"""
+        <div style="
+            background: linear-gradient(135deg, {card_color}15, {card_color}05);
+            border: 1px solid {card_color}40;
+            border-left: 4px solid {card_color};
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            {'border: 3px solid #FF6B35;' if is_user_team else ''}
+        ">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <div style="font-size: 1.3rem; font-weight: 600;">
+                    #{rank} Team {team_id}{user_badge}
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 2rem; font-weight: 700; color: {card_color};">
+                        {grade_emoji} {grade}
+                    </div>
+                    <div style="font-size: 0.9rem; color: #6c757d;">
+                        {final_score:.0f}/100 points
+                    </div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Use Streamlit columns for the details instead of complex HTML grid
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown(f"""
+            **🎯 Outlook:** {outlook}  
+            **👥 Roster Size:** {team_stats.get('roster_size', 0)} players  
+            **📊 Total Z-Score:** {team_stats.get('total_z_score', 0):.1f}
+            """)
+        
+        with col2:
+            st.markdown(f"""
+            **🏀 Top Player:** {team_stats.get('top_player', 'N/A')}  
+            **⚖️ Position Balance:** {position_analysis.get('balance_score', 0):.0f}/100  
+            **🔄 Flexibility:** {position_analysis.get('flexibility', 'Low')}
+            """)
+        
+        # Summary row
+        st.markdown(f"""
+        <div style="font-size: 0.9rem; color: #6c757d; margin-bottom: 1rem;">
+            <strong>Strengths:</strong> {team_projection.get('strong_categories', 0)} categories • 
+            <strong>Weaknesses:</strong> {team_projection.get('weak_categories', 0)} categories
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+
+
+def render_competitive_balance_analysis(competitive_balance: Dict[str, Any], team_analyses: Dict[int, Dict]):
+    """Render competitive balance analysis."""
+    
+    st.markdown("### ⚖️ Competitive Balance Analysis")
+    
+    balance_score = competitive_balance.get('balance_score', 0)
+    competitiveness = competitive_balance.get('competitiveness', 'Unknown')
+    score_spread = competitive_balance.get('score_spread', 0)
+    std_dev = competitive_balance.get('std_deviation', 0)
+    
+    # Balance metrics
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric(
+            "🎯 Balance Score", 
+            f"{balance_score:.0f}/100",
+            help="Higher scores indicate more competitive balance"
+        )
+    
+    with col2:
+        st.metric(
+            "📊 Competitiveness", 
+            competitiveness,
+            help="Overall league competitiveness level"
+        )
+    
+    with col3:
+        st.metric(
+            "📈 Score Spread", 
+            f"{score_spread:.0f} pts",
+            help="Difference between best and worst teams"
+        )
+    
+    # Balance interpretation
+    st.markdown("#### 📋 Balance Analysis")
+    
+    if balance_score >= 80:
+        balance_color = "#28a745"
+        balance_message = "🏆 **Excellent Balance** - This league is highly competitive with teams closely matched in strength."
+    elif balance_score >= 65:
+        balance_color = "#17a2b8"
+        balance_message = "📈 **Good Balance** - Most teams are competitive with some clear favorites emerging."
+    elif balance_score >= 50:
+        balance_color = "#ffc107"
+        balance_message = "⚖️ **Moderate Balance** - There's a mix of strong and weak teams with room for upsets."
+    elif balance_score >= 35:
+        balance_color = "#fd7e14"
+        balance_message = "📉 **Poor Balance** - Clear tiers exist with some teams significantly stronger."
+    else:
+        balance_color = "#dc3545"
+        balance_message = "🚨 **Very Poor Balance** - Highly unbalanced league with dominant teams."
+    
+    st.markdown(f"""
+    <div style="
+        background: linear-gradient(135deg, {balance_color}15, {balance_color}05);
+        border: 1px solid {balance_color}40;
+        border-left: 4px solid {balance_color};
+        border-radius: 8px;
+        padding: 1rem;
+        margin: 1rem 0;
+    ">
+        {balance_message}
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Team distribution chart (simplified)
+    if team_analyses:
+        st.markdown("#### 📊 Team Score Distribution")
+        
+        # Create score ranges
+        scores = [analysis['team_projection']['final_score'] for analysis in team_analyses.values()]
+        
+        # Simple distribution display
+        score_ranges = {
+            'Elite (80-100)': len([s for s in scores if s >= 80]),
+            'Strong (70-79)': len([s for s in scores if 70 <= s < 80]),
+            'Average (60-69)': len([s for s in scores if 60 <= s < 70]),
+            'Weak (50-59)': len([s for s in scores if 50 <= s < 60]),
+            'Poor (<50)': len([s for s in scores if s < 50])
+        }
+        
+        for range_name, count in score_ranges.items():
+            if count > 0:
+                percentage = (count / len(scores)) * 100
+                st.markdown(f"**{range_name}:** {count} teams ({percentage:.0f}%)")
+
+
+def render_strategic_analysis(strategic_insights: Dict[str, Any], team_analyses: Dict[int, Dict], user_team_id: int):
+    """Render strategic analysis and insights."""
+    
+    st.markdown("### 🎯 Strategic Analysis")
+    
+    draft_trends = strategic_insights.get('draft_trends', [])
+    strategic_observations = strategic_insights.get('strategic_observations', [])
+    user_recommendations = strategic_insights.get('user_recommendations', [])
+    
+    # Draft trends
+    if draft_trends:
+        st.markdown("#### 📈 Draft Trends")
+        for trend in draft_trends:
+            st.markdown(f"• {trend}")
+    
+    # Strategic observations
+    if strategic_observations:
+        st.markdown("#### 🔍 Strategic Observations")
+        for observation in strategic_observations:
+            st.markdown(f"• {observation}")
+    
+    # User-specific recommendations
+    if user_recommendations:
+        st.markdown("#### 💡 Your Team Recommendations")
+        
+        for i, recommendation in enumerate(user_recommendations):
+            if i == 0:  # First recommendation gets special styling
+                if "championship" in recommendation.lower() or "excellent" in recommendation.lower():
+                    rec_color = "#28a745"
+                    rec_emoji = "🏆"
+                elif "strong" in recommendation.lower() or "good" in recommendation.lower():
+                    rec_color = "#17a2b8"
+                    rec_emoji = "💪"
+                elif "solid" in recommendation.lower():
+                    rec_color = "#ffc107"
+                    rec_emoji = "⚖️"
+                else:
+                    rec_color = "#fd7e14"
+                    rec_emoji = "💡"
+                
+                st.markdown(f"""
+                <div style="
+                    background: linear-gradient(135deg, {rec_color}15, {rec_color}05);
+                    border: 1px solid {rec_color}40;
+                    border-left: 4px solid {rec_color};
+                    border-radius: 8px;
+                    padding: 1rem;
+                    margin: 0.5rem 0;
+                ">
+                    <strong>{rec_emoji} {recommendation}</strong>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"• {recommendation}")
+    
+    # Punt strategy analysis across league - only show legitimate punt strategies
+    st.markdown("#### 🎯 League Punt Strategy Analysis")
+    
+    # Filter for legitimate punt strategies only (high or medium confidence)
+    punt_summary = {}
+    for team_id, analysis in team_analyses.items():
+        punt_analysis = analysis.get('punt_analysis', {})
+        punt_confidence = punt_analysis.get('strategy_confidence', 'none')
+        
+        # Only include teams with meaningful punt strategies
+        if punt_confidence in ['high', 'medium']:
+            punt_cats = punt_analysis.get('punt_categories', [])
+            for punt_cat in punt_cats:
+                # Only include high and medium confidence punt categories
+                if punt_cat.get('confidence') in ['high', 'medium']:
+                    cat_short = punt_cat.get('short', 'Unknown')
+                    if cat_short not in punt_summary:
+                        punt_summary[cat_short] = []
+                    punt_summary[cat_short].append({
+                        'team_id': team_id,
+                        'confidence': punt_cat.get('confidence', 'low')
+                    })
+    
+    if punt_summary:
+        # Sort by number of teams punting each category
+        sorted_punts = sorted(punt_summary.items(), key=lambda x: len(x[1]), reverse=True)
+        
+        for category, teams in sorted_punts:
+            if len(teams) >= 2:  # Only show if at least 2 teams are punting
+                high_conf_teams = [t for t in teams if t['confidence'] == 'high']
+                medium_conf_teams = [t for t in teams if t['confidence'] == 'medium']
+                
+                team_list_parts = []
+                if high_conf_teams:
+                    high_team_names = [f"Team {t['team_id']}" for t in high_conf_teams]
+                    team_list_parts.append(f"**{', '.join(high_team_names)}**")
+                if medium_conf_teams:
+                    medium_team_names = [f"Team {t['team_id']}" for t in medium_conf_teams]
+                    team_list_parts.append(f"{', '.join(medium_team_names)}")
+                
+                team_display = " • ".join(team_list_parts)
+                confidence_info = ""
+                if high_conf_teams and medium_conf_teams:
+                    confidence_info = f" (Bold = high confidence)"
+                
+                st.markdown(f"**{category} Punt:** {team_display} ({len(teams)} teams){confidence_info}")
+        
+        if not any(len(teams) >= 2 for teams in punt_summary.values()):
+            st.info("No widespread punt strategies detected - teams are pursuing balanced approaches.")
+    else:
+        st.info("No clear punt strategies detected across the league.")
+    
+    # Add some additional strategic insights
+    if team_analyses:
+        st.markdown("#### 📋 League Composition Analysis")
+        
+        # Count team outlook distribution
+        outlooks = {}
+        for analysis in team_analyses.values():
+            outlook = analysis.get('team_projection', {}).get('outlook', 'Unknown')
+            outlooks[outlook] = outlooks.get(outlook, 0) + 1
+        
+        if outlooks:
+            outlook_display = []
+            for outlook, count in sorted(outlooks.items(), key=lambda x: x[1], reverse=True):
+                outlook_display.append(f"**{outlook}:** {count} teams")
+            
+            st.markdown(" • ".join(outlook_display))
+        
+        # Analyze grade distribution
+        grades = {}
+        for analysis in team_analyses.values():
+            grade = analysis.get('team_projection', {}).get('grade', 'F')
+            grade_tier = grade[0]  # A, B, C, D, F
+            grades[grade_tier] = grades.get(grade_tier, 0) + 1
+        
+        if grades:
+            total_teams = sum(grades.values())
+            grade_display = []
+            for grade in ['A', 'B', 'C', 'D', 'F']:
+                count = grades.get(grade, 0)
+                if count > 0:
+                    percentage = (count / total_teams) * 100
+                    grade_display.append(f"{grade}-tier: {count} ({percentage:.0f}%)")
+            
+            if grade_display:
+                st.markdown(f"**Grade Distribution:** {' • '.join(grade_display)}")
+
+
+def render_advanced_metrics_dashboard(team_analyses: Dict[int, Dict], league_insights: Dict[str, Any]):
+    """Render advanced metrics dashboard."""
+    
+    st.markdown("### 📈 Advanced Metrics Dashboard")
+    
+    if not team_analyses:
+        st.info("No team data available for advanced analysis.")
+        return
+    
+    # Calculate league-wide advanced metrics
+    all_ages = []
+    all_games_played = []
+    all_usage_rates = []
+    all_true_shooting = []
+    
+    for analysis in team_analyses.values():
+        advanced_metrics = analysis.get('advanced_metrics', {})
+        roster_df = analysis.get('roster_df')
+        
+        if roster_df is not None and not roster_df.empty:
+            if 'age' in roster_df.columns:
+                all_ages.extend(roster_df['age'].dropna().tolist())
+            if 'games_played' in roster_df.columns:
+                all_games_played.extend(roster_df['games_played'].dropna().tolist())
+            if 'usage_rate' in roster_df.columns:
+                all_usage_rates.extend(roster_df['usage_rate'].dropna().tolist())
+            if 'true_shooting_pct' in roster_df.columns:
+                all_true_shooting.extend(roster_df['true_shooting_pct'].dropna().tolist())
+    
+    # League averages
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        if all_ages:
+            avg_age = sum(all_ages) / len(all_ages)
+            st.metric("👤 League Avg Age", f"{avg_age:.1f}")
+    
+    with col2:
+        if all_games_played:
+            avg_gp = sum(all_games_played) / len(all_games_played)
+            st.metric("🏥 Avg Games Played", f"{avg_gp:.0f}")
+    
+    with col3:
+        if all_usage_rates:
+            avg_usage = sum(all_usage_rates) / len(all_usage_rates)
+            st.metric("🏀 Avg Usage Rate", f"{avg_usage:.1%}")
+    
+    with col4:
+        if all_true_shooting:
+            avg_ts = sum(all_true_shooting) / len(all_true_shooting)
+            st.metric("🎯 Avg True Shooting", f"{avg_ts:.1%}")
+    
+    st.markdown("---")
+    
+    # Team-by-team advanced metrics
+    st.markdown("#### 🔬 Team Advanced Metrics")
+    
+    for team_id, analysis in team_analyses.items():
+        advanced_metrics = analysis.get('advanced_metrics', {})
+        team_stats = analysis.get('team_stats', {})
+        
+        if advanced_metrics:
+            is_user_team = team_stats.get('is_user_team', False)
+            border_style = "border: 2px solid #FF6B35;" if is_user_team else ""
+            user_badge = " 👤" if is_user_team else ""
+            
+            with st.expander(f"Team {team_id}{user_badge} - Advanced Metrics"):
+                col_a, col_b, col_c = st.columns(3)
+                
+                with col_a:
+                    st.markdown("**🏥 Durability**")
+                    if 'avg_games_played' in advanced_metrics:
+                        st.metric("Avg Games", f"{advanced_metrics['avg_games_played']:.0f}")
+                    if 'durable_players' in advanced_metrics:
+                        st.metric("Durable Players", advanced_metrics['durable_players'])
+                    if 'injury_prone_players' in advanced_metrics:
+                        st.metric("Injury Risk", advanced_metrics['injury_prone_players'])
+                
+                with col_b:
+                    st.markdown("**👤 Demographics**")
+                    if 'avg_age' in advanced_metrics:
+                        st.metric("Avg Age", f"{advanced_metrics['avg_age']:.1f}")
+                    if 'young_players' in advanced_metrics:
+                        st.metric("Young Players (≤25)", advanced_metrics['young_players'])
+                    if 'veteran_players' in advanced_metrics:
+                        st.metric("Veterans (≥30)", advanced_metrics['veteran_players'])
+                
+                with col_c:
+                    st.markdown("**🎯 Performance**")
+                    if 'elite_players' in advanced_metrics:
+                        st.metric("Elite Players", advanced_metrics['elite_players'])
+                    if 'efficient_players' in advanced_metrics:
+                        st.metric("Efficient Shooters", advanced_metrics['efficient_players'])
+                    if 'z_score_consistency' in advanced_metrics:
+                        st.metric("Consistency", advanced_metrics['z_score_consistency']) 

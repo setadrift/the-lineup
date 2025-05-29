@@ -38,13 +38,15 @@ from app.frontend.streamlit.components.ui_components import (
     render_help_section,
     render_feature_highlights,
     render_auto_save_controls,
-    render_draft_save_notification
+    render_draft_save_notification,
+    render_draft_recap_analytics
 )
 from app.frontend.streamlit.components.draft_logic import (
     DraftState,
     PickSuggestionEngine,
     AIOpponent,
     CategoryAnalyzer,
+    DraftAnalytics,
     initialize_draft_state,
     get_available_players
 )
@@ -402,27 +404,99 @@ def handle_draft_complete(draft_state: DraftState, player_pool_df: pd.DataFrame,
     
     st.success("🎉 Draft complete! Here are the final rosters:")
     
-    # Create tabs for final summary
-    team_tabs = st.tabs([f"Team {i}" + (" (You)" if i == draft_state.user_team_id else "") 
-                        for i in range(1, num_teams + 1)])
+    # Generate comprehensive draft analytics
+    config = st.session_state.get("current_draft_config", {})
+    analytics_engine = DraftAnalytics(player_pool_df)
+    analytics_data = analytics_engine.generate_draft_recap(draft_state, config)
     
-    for i, tab in enumerate(team_tabs, 1):
-        with tab:
-            roster_ids = draft_state.team_rosters[i]
-            if roster_ids:
-                team_df = get_player_by_ids(roster_ids, player_pool_df)
-                st.dataframe(
-                    team_df[["name", "team", "position", "total_z_score"]].rename(columns={
+    # Create main tabs for draft completion
+    tab_rosters, tab_analytics = st.tabs(["📋 Final Rosters", "📊 Draft Analytics Dashboard"])
+    
+    with tab_rosters:
+        # Create tabs for final summary
+        team_tabs = st.tabs([f"Team {i}" + (" (You)" if i == draft_state.user_team_id else "") 
+                            for i in range(1, num_teams + 1)])
+        
+        for i, tab in enumerate(team_tabs, 1):
+            with tab:
+                roster_ids = draft_state.team_rosters[i]
+                if roster_ids:
+                    team_df = get_player_by_ids(roster_ids, player_pool_df)
+                    
+                    # Enhanced roster display with more stats
+                    display_columns = ["name", "team", "position", "total_z_score"]
+                    if "games_played" in team_df.columns:
+                        display_columns.append("games_played")
+                    if "age" in team_df.columns:
+                        display_columns.append("age")
+                    
+                    column_mapping = {
                         'name': 'Player',
-                        'team': 'Team',
+                        'team': 'NBA Team',
                         'position': 'Position',
-                        'total_z_score': 'Z-Score'
-                    }), 
-                    use_container_width=True, 
-                    hide_index=True
-                )
-            else:
-                st.write("No players drafted.")
+                        'total_z_score': 'Z-Score',
+                        'games_played': 'GP',
+                        'age': 'Age'
+                    }
+                    
+                    # Filter and rename columns
+                    available_columns = [col for col in display_columns if col in team_df.columns]
+                    display_df = team_df[available_columns].rename(columns=column_mapping)
+                    
+                    st.dataframe(display_df, use_container_width=True, hide_index=True)
+                    
+                    # Team summary metrics
+                    col_summary1, col_summary2, col_summary3 = st.columns(3)
+                    with col_summary1:
+                        st.metric("Total Z-Score", f"{team_df['total_z_score'].sum():.1f}")
+                    with col_summary2:
+                        st.metric("Avg Z-Score", f"{team_df['total_z_score'].mean():.2f}")
+                    with col_summary3:
+                        if "games_played" in team_df.columns:
+                            st.metric("Avg Games Played", f"{team_df['games_played'].mean():.0f}")
+                        else:
+                            st.metric("Players", len(team_df))
+                else:
+                    st.write("No players drafted.")
+    
+    with tab_analytics:
+        # Render the comprehensive analytics dashboard
+        render_draft_recap_analytics(analytics_data)
+        
+        # Add export/sharing options
+        st.markdown("---")
+        st.markdown("### 📤 Export & Share")
+        
+        col_export1, col_export2, col_export3 = st.columns(3)
+        
+        with col_export1:
+            if st.button("📊 Download Analytics Report", use_container_width=True):
+                # Future: Generate PDF report
+                st.info("📋 Analytics report download coming soon!")
+        
+        with col_export2:
+            if st.button("📋 Copy League Summary", use_container_width=True):
+                # Generate shareable summary
+                league_insights = analytics_data.get('league_insights', {})
+                user_standing = league_insights.get('user_standing', {})
+                
+                summary_text = f"""
+🏀 Draft Recap Summary
+📊 League: {config.get('num_teams', 'N/A')} teams, {config.get('season', 'N/A')} season
+🥇 Your Ranking: #{user_standing.get('rank', 'N/A')} of {user_standing.get('total_teams', 'N/A')}
+⚖️ League Balance: {analytics_data.get('competitive_balance', {}).get('competitiveness', 'N/A')}
+                """.strip()
+                
+                st.code(summary_text, language=None)
+                st.success("📋 Summary ready to copy!")
+        
+        with col_export3:
+            if st.button("🔄 Start New Draft", use_container_width=True, type="primary"):
+                # Clear draft state for new draft
+                for key in ['draft_state', 'draft_started', 'draft_complete']:
+                    if key in st.session_state:
+                        del st.session_state[key]
+                st.rerun()
 
 
 def handle_live_draft_assistant():

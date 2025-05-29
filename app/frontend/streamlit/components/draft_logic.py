@@ -277,48 +277,56 @@ class CategoryAnalyzer:
         punt_candidates = []
         punt_recommendations = []
         
-        # Define punt strategy thresholds and logic
+        # More conservative punt detection criteria
         for z_col, data in analysis.items():
             category_info = self.CATEGORIES[z_col]
             team_total = data['team_total']
             team_rank = data.get('rank')
             total_teams = data.get('total_teams', 1)
             
-            # Punt detection criteria
+            # Punt detection criteria - more conservative
             is_punt_candidate = False
             confidence = 'low'
             reason = ""
             
-            # Criteria 1: Bottom 25% in rankings with multiple teams
-            if team_rank and total_teams >= 4:
-                bottom_quartile_threshold = total_teams * 0.75
-                if team_rank >= bottom_quartile_threshold:
+            # Only consider punt if we have multiple teams and clear ranking data
+            if team_rank and total_teams >= 6:  # Need at least 6 teams for meaningful comparison
+                
+                # Criteria 1: Bottom 20% in rankings (much more conservative than 25%)
+                bottom_quintile_threshold = total_teams * 0.80
+                if team_rank >= bottom_quintile_threshold and team_total < -1:  # Also require negative total
                     is_punt_candidate = True
                     confidence = 'high'
-                    reason = f"Ranked {data['rank_suffix']} of {total_teams} teams"
-            
-            # Criteria 2: Very negative team total (for non-turnover categories)
-            elif category_info['good_direction'] == 'high' and team_total < -3:
-                is_punt_candidate = True
-                confidence = 'medium'
-                reason = f"Very low team total ({team_total:.1f})"
-            
-            # Criteria 3: Very positive turnover total (bad for turnovers)
-            elif category_info['good_direction'] == 'low' and team_total > 3:
-                is_punt_candidate = True
-                confidence = 'medium'
-                reason = f"High turnover total ({team_total:.1f})"
-            
-            # Criteria 4: Percentage categories with consistently poor performers
-            elif z_col in ['z_fg_pct', 'z_ft_pct']:
-                # Check if most players are below average in this category
-                poor_performers = len(roster_df[roster_df[z_col] < -0.5])
-                total_players = len(roster_df)
+                    reason = f"Ranked {data['rank_suffix']} of {total_teams} teams with weak total"
                 
-                if poor_performers >= total_players * 0.6:  # 60% of players are poor
+                # Criteria 2: Last place with very weak total
+                elif team_rank == total_teams and team_total < -2:
                     is_punt_candidate = True
                     confidence = 'medium'
-                    reason = f"{poor_performers}/{total_players} players below average"
+                    reason = f"Last place ({data['rank_suffix']}) with very weak total ({team_total:.1f})"
+            
+            # Criteria 3: Extremely negative team total (rare cases without ranking)
+            elif category_info['good_direction'] == 'high' and team_total < -4:  # Much more conservative threshold
+                is_punt_candidate = True
+                confidence = 'medium'
+                reason = f"Extremely low team total ({team_total:.1f})"
+            
+            # Criteria 4: Extremely positive turnover total (bad for turnovers) 
+            elif category_info['good_direction'] == 'low' and team_total > 4:  # More conservative threshold
+                is_punt_candidate = True
+                confidence = 'medium'
+                reason = f"Very high turnover total ({team_total:.1f})"
+            
+            # Criteria 5: Percentage categories with consistently poor performers (more conservative)
+            elif z_col in ['z_fg_pct', 'z_ft_pct'] and len(roster_df) >= 6:  # Need more players
+                # Check if most players are significantly below average
+                poor_performers = len(roster_df[roster_df[z_col] < -1.0])  # More stringent threshold
+                total_players = len(roster_df)
+                
+                if poor_performers >= total_players * 0.75:  # 75% of players must be significantly poor
+                    is_punt_candidate = True
+                    confidence = 'medium'
+                    reason = f"{poor_performers}/{total_players} players significantly below average"
             
             if is_punt_candidate:
                 punt_candidates.append({
@@ -332,7 +340,7 @@ class CategoryAnalyzer:
                     'rank_suffix': data.get('rank_suffix', 'N/A')
                 })
         
-        # Generate punt strategy recommendations
+        # Generate punt strategy recommendations only for high confidence punts
         if punt_candidates:
             # Sort by confidence and impact
             punt_candidates.sort(key=lambda x: (
@@ -340,20 +348,27 @@ class CategoryAnalyzer:
                 abs(x['team_total'])
             ), reverse=True)
             
-            # Generate recommendations for top punt candidates
-            for punt_cat in punt_candidates[:2]:  # Limit to top 2 punt categories
-                recommendations = self._generate_punt_recommendations(punt_cat, roster_df)
+            # Only generate recommendations for high confidence punts or top medium confidence punt
+            high_confidence_punts = [p for p in punt_candidates if p['confidence'] == 'high']
+            
+            if high_confidence_punts:
+                for punt_cat in high_confidence_punts[:2]:  # Limit to top 2 high confidence punts
+                    recommendations = self._generate_punt_recommendations(punt_cat, roster_df)
+                    punt_recommendations.extend(recommendations)
+            elif punt_candidates and punt_candidates[0]['confidence'] == 'medium':
+                # Only include top medium confidence punt if no high confidence punts
+                recommendations = self._generate_punt_recommendations(punt_candidates[0], roster_df)
                 punt_recommendations.extend(recommendations)
         
-        # Determine overall strategy confidence
+        # Determine overall strategy confidence - much more conservative
         high_confidence_punts = [p for p in punt_candidates if p['confidence'] == 'high']
         medium_confidence_punts = [p for p in punt_candidates if p['confidence'] == 'medium']
         
-        if len(high_confidence_punts) >= 1:
+        if len(high_confidence_punts) >= 2:  # Need 2 high confidence punts
             strategy_confidence = 'high'
-        elif len(medium_confidence_punts) >= 2:
+        elif len(high_confidence_punts) >= 1 and len(medium_confidence_punts) >= 1:
             strategy_confidence = 'medium'
-        elif len(punt_candidates) >= 1:
+        elif len(high_confidence_punts) >= 1:
             strategy_confidence = 'low'
         else:
             strategy_confidence = 'none'
@@ -628,15 +643,37 @@ class CategoryAnalyzer:
         
         # 3. Position Balance Analysis
         if 'position' in roster_df.columns:
-            # Count primary positions
+            # Count positions (handle the actual database format)
             position_counts = {}
+            multi_position_players = 0
+            
+            # Map actual position values to simplified categories
+            position_mapping = {
+                'Guard': 'Guard',
+                'Point Guard': 'Guard', 
+                'Shooting Guard': 'Guard',
+                'Forward': 'Forward',
+                'Small Forward': 'Forward',
+                'Power Forward': 'Forward', 
+                'Center': 'Center',
+                'Forward-Center': 'Big',  # Hybrid big man
+                'Center-Forward': 'Big',  # Hybrid big man
+                'Guard-Forward': 'Wing'   # Hybrid wing
+            }
+            
             for pos_string in roster_df['position']:
                 if pd.notna(pos_string):
-                    # Split multi-position players and count primary position
-                    primary_pos = pos_string.split('-')[0]
-                    position_counts[primary_pos] = position_counts.get(primary_pos, 0) + 1
+                    # Handle hyphenated positions
+                    if '-' in pos_string:
+                        multi_position_players += 1
+                        # For hyphenated positions, use the mapping or primary position
+                        mapped_pos = position_mapping.get(pos_string, pos_string.split('-')[0])
+                    else:
+                        mapped_pos = position_mapping.get(pos_string, pos_string)
+                    
+                    position_counts[mapped_pos] = position_counts.get(mapped_pos, 0) + 1
             
-            # Check for position imbalances
+            # Check for position imbalances using the actual position categories
             total_players = len(roster_df)
             
             # Too many of one position
@@ -648,22 +685,33 @@ class CategoryAnalyzer:
                         'title': f'Too Many {pos}s',
                         'message': f"{count} {pos}s may limit flexibility",
                         'recommendation': f"Consider diversifying away from {pos}",
-                        'affected_players': roster_df[roster_df['position'].str.startswith(pos)]['name'].tolist()
+                        'affected_players': roster_df[roster_df['position'].str.contains(pos, na=False)]['name'].tolist()
                     })
                     risk_factors.append('position_imbalance')
             
-            # Missing key positions (if we have enough players)
+            # Missing key positions (if we have enough players) - updated for real position format
             if total_players >= 6:
-                key_positions = ['PG', 'SG', 'SF', 'PF', 'C']
-                missing_positions = [pos for pos in key_positions if pos not in position_counts]
+                # Check for basic position coverage
+                has_guards = any('Guard' in pos for pos in position_counts.keys())
+                has_forwards = any('Forward' in pos for pos in position_counts.keys()) 
+                has_centers = any('Center' in pos for pos in position_counts.keys())
+                has_bigs = any(pos in ['Big', 'Center'] for pos in position_counts.keys())
                 
-                if len(missing_positions) >= 2:
+                missing_positions = []
+                if not has_guards:
+                    missing_positions.append('Guards')
+                if not (has_forwards or has_centers):  # Need either forwards or centers
+                    missing_positions.append('Frontcourt players')
+                if not (has_centers or has_bigs):
+                    missing_positions.append('Centers')
+                
+                if len(missing_positions) >= 1:
                     warnings.append({
                         'type': 'position_gap',
                         'severity': 'medium',
                         'title': 'Position Gaps',
                         'message': f"Missing {', '.join(missing_positions)} representation",
-                        'recommendation': f"Target {missing_positions[0]} or {missing_positions[1]} players",
+                        'recommendation': f"Target {missing_positions[0]}",
                         'affected_players': []
                     })
                     risk_factors.append('position_gaps')
@@ -696,25 +744,37 @@ class CategoryAnalyzer:
         
         # 5. Efficiency Concerns
         if 'true_shooting_pct' in roster_df.columns:
-            inefficient_players = roster_df[roster_df['true_shooting_pct'] < 0.50]
-            very_inefficient_players = roster_df[roster_df['true_shooting_pct'] < 0.45]
+            # Check if true_shooting_pct is in decimal format (0.0-1.0) or percentage format
+            max_ts = roster_df['true_shooting_pct'].max()
             
-            if len(very_inefficient_players) >= 2:
+            if max_ts <= 1.0:  # Decimal format (0.0-1.0)
+                inefficient_players = roster_df[roster_df['true_shooting_pct'] < 0.50]
+                very_inefficient_players = roster_df[roster_df['true_shooting_pct'] < 0.45]
+                threshold_display = "50% TS"
+                very_threshold_display = "45% TS"
+            else:  # Percentage format (0-100)
+                inefficient_players = roster_df[roster_df['true_shooting_pct'] < 50]
+                very_inefficient_players = roster_df[roster_df['true_shooting_pct'] < 45]
+                threshold_display = "50% TS"
+                very_threshold_display = "45% TS"
+            
+            # Only flag if we have multiple inefficient players (more conservative)
+            if len(very_inefficient_players) >= 3:  # Need at least 3 very inefficient players
                 warnings.append({
                     'type': 'efficiency_risk',
                     'severity': 'high',
                     'title': 'Poor Shooting Efficiency',
-                    'message': f"{len(very_inefficient_players)} players with <45% TS",
+                    'message': f"{len(very_inefficient_players)} players with <{very_threshold_display}",
                     'recommendation': "Add efficient shooters to balance team",
                     'affected_players': very_inefficient_players['name'].tolist()
                 })
                 risk_factors.append('efficiency_risk')
-            elif len(inefficient_players) >= 4:
+            elif len(inefficient_players) >= 5:  # Need at least 5 inefficient players
                 warnings.append({
                     'type': 'efficiency_risk',
                     'severity': 'medium',
                     'title': 'Below Average Efficiency',
-                    'message': f"{len(inefficient_players)} players with <50% TS",
+                    'message': f"{len(inefficient_players)} players with <{threshold_display}",
                     'recommendation': "Consider targeting more efficient players",
                     'affected_players': inefficient_players['name'].tolist()
                 })
@@ -1188,4 +1248,624 @@ def get_available_players(player_pool_df: pd.DataFrame, drafted_players: List[st
     Returns:
         DataFrame of available players
     """
-    return player_pool_df[~player_pool_df["player_id"].isin(drafted_players)] 
+    return player_pool_df[~player_pool_df["player_id"].isin(drafted_players)]
+
+
+class DraftAnalytics:
+    """Comprehensive post-draft analytics and team projections."""
+    
+    def __init__(self, player_pool_df: pd.DataFrame):
+        self.player_pool_df = player_pool_df
+        self.category_analyzer = CategoryAnalyzer(player_pool_df)
+    
+    def generate_draft_recap(self, draft_state: 'DraftState', config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Generate comprehensive draft recap analytics.
+        
+        Args:
+            draft_state: Completed draft state
+            config: Draft configuration
+            
+        Returns:
+            Dictionary with complete draft analytics
+        """
+        # Analyze each team
+        team_analyses = {}
+        league_stats = {
+            'total_picks': len(draft_state.drafted_players),
+            'rounds_completed': draft_state.round - 1 if not draft_state.is_complete() else draft_state.roster_size,
+            'teams': config['num_teams'],
+            'season': config['season']
+        }
+        
+        # Get all team projections
+        for team_id, roster_ids in draft_state.team_rosters.items():
+            if roster_ids:  # Only analyze teams with players
+                team_analysis = self._analyze_team_comprehensive(
+                    team_id, roster_ids, draft_state.team_rosters, draft_state.user_team_id
+                )
+                team_analyses[team_id] = team_analysis
+        
+        # Generate league-wide insights
+        league_insights = self._generate_league_insights(team_analyses, draft_state.user_team_id)
+        
+        # Calculate competitive balance
+        competitive_balance = self._calculate_competitive_balance(team_analyses)
+        
+        # Generate strategic recommendations
+        strategic_insights = self._generate_strategic_insights(team_analyses, draft_state.user_team_id)
+        
+        return {
+            'team_analyses': team_analyses,
+            'league_stats': league_stats,
+            'league_insights': league_insights,
+            'competitive_balance': competitive_balance,
+            'strategic_insights': strategic_insights,
+            'user_team_id': draft_state.user_team_id,
+            'draft_complete': draft_state.is_complete()
+        }
+    
+    def _analyze_team_comprehensive(self, team_id: int, roster_ids: List[str], 
+                                   all_team_rosters: Dict[int, List[str]], 
+                                   user_team_id: int) -> Dict[str, Any]:
+        """
+        Comprehensive analysis of a single team.
+        
+        Args:
+            team_id: Team ID to analyze
+            roster_ids: List of player IDs on the team
+            all_team_rosters: All team rosters for relative analysis
+            user_team_id: User's team ID
+            
+        Returns:
+            Dictionary with comprehensive team analysis
+        """
+        # Get team roster data
+        roster_df = self.player_pool_df[self.player_pool_df["player_id"].isin(roster_ids)]
+        
+        if roster_df.empty:
+            return self._get_empty_team_analysis(team_id)
+        
+        # Basic team stats
+        team_stats = {
+            'team_id': team_id,
+            'is_user_team': team_id == user_team_id,
+            'roster_size': len(roster_ids),
+            'total_z_score': roster_df['total_z_score'].sum(),
+            'avg_z_score': roster_df['total_z_score'].mean(),
+            'top_player': roster_df.loc[roster_df['total_z_score'].idxmax(), 'name'],
+            'top_player_z_score': roster_df['total_z_score'].max()
+        }
+        
+        # Category analysis with rankings
+        category_analysis = self.category_analyzer.analyze_team_categories(
+            roster_ids, all_team_rosters, user_team_id
+        )
+        
+        # Position analysis
+        position_analysis = self._analyze_team_positions(roster_df)
+        
+        # Punt strategy detection
+        punt_analysis = self.category_analyzer.detect_punt_strategies(
+            roster_ids, all_team_rosters, user_team_id
+        )
+        
+        # Roster construction warnings
+        construction_warnings = self.category_analyzer.detect_roster_construction_warnings(roster_ids)
+        
+        # Advanced team metrics
+        advanced_metrics = self._calculate_advanced_team_metrics(roster_df)
+        
+        # Team projection and grade
+        team_projection = self._calculate_team_projection(category_analysis, punt_analysis, construction_warnings)
+        
+        return {
+            'team_stats': team_stats,
+            'category_analysis': category_analysis,
+            'position_analysis': position_analysis,
+            'punt_analysis': punt_analysis,
+            'construction_warnings': construction_warnings,
+            'advanced_metrics': advanced_metrics,
+            'team_projection': team_projection,
+            'roster_df': roster_df
+        }
+    
+    def _analyze_team_positions(self, roster_df: pd.DataFrame) -> Dict[str, Any]:
+        """Analyze team position distribution and balance."""
+        if roster_df.empty:
+            return {'position_counts': {}, 'balance_score': 0, 'flexibility': 'Low'}
+        
+        # Count positions (handle multi-position players)
+        position_counts = {}
+        multi_position_players = 0
+        
+        # Map actual position values to simplified categories
+        position_mapping = {
+            'Guard': 'Guard',
+            'Point Guard': 'Guard',
+            'Shooting Guard': 'Guard',
+            'Forward': 'Forward', 
+            'Small Forward': 'Forward',
+            'Power Forward': 'Forward',
+            'Center': 'Center',
+            'Forward-Center': 'Big',    # Hybrid big man
+            'Center-Forward': 'Big',    # Hybrid big man
+            'Guard-Forward': 'Wing'     # Hybrid wing
+        }
+        
+        for pos_string in roster_df['position']:
+            if pd.notna(pos_string):
+                # Handle hyphenated positions
+                if '-' in pos_string:
+                    multi_position_players += 1
+                
+                mapped_pos = position_mapping.get(pos_string, pos_string)
+                position_counts[mapped_pos] = position_counts.get(mapped_pos, 0) + 1
+        
+        # Calculate balance score (0-100)
+        total_players = len(roster_df)
+        
+        # Expected distribution for 3 main position types + hybrids
+        expected_counts = {
+            'Guard': total_players * 0.35,    # ~35% guards
+            'Forward': total_players * 0.35,  # ~35% forwards  
+            'Center': total_players * 0.20,   # ~20% centers
+            'Big': total_players * 0.05,      # ~5% hybrid bigs
+            'Wing': total_players * 0.05      # ~5% hybrid wings
+        }
+        
+        balance_score = 0
+        if total_players > 0:
+            # Calculate balance based on how close we are to expected distribution
+            for pos, expected in expected_counts.items():
+                actual = position_counts.get(pos, 0)
+                deviation = abs(actual - expected) / max(expected, 1)
+                # Score: 20 points max per position, reduced by deviation
+                position_score = max(0, 20 - (deviation * 10))
+                balance_score += position_score
+        
+        # Flexibility bonus for multi-position players
+        flexibility_bonus = min(20, multi_position_players * 5)
+        balance_score += flexibility_bonus
+        
+        # Determine flexibility rating
+        if multi_position_players >= 4:
+            flexibility = 'High'
+        elif multi_position_players >= 2:
+            flexibility = 'Medium'
+        else:
+            flexibility = 'Low'
+        
+        return {
+            'position_counts': position_counts,
+            'multi_position_players': multi_position_players,
+            'balance_score': min(100, balance_score),
+            'flexibility': flexibility,
+            'total_players': total_players
+        }
+    
+    def _calculate_advanced_team_metrics(self, roster_df: pd.DataFrame) -> Dict[str, Any]:
+        """Calculate advanced team metrics for deeper analysis."""
+        if roster_df.empty:
+            return {}
+        
+        metrics = {}
+        
+        # Age analysis
+        if 'age' in roster_df.columns:
+            metrics['avg_age'] = roster_df['age'].mean()
+            metrics['age_range'] = roster_df['age'].max() - roster_df['age'].min()
+            metrics['young_players'] = len(roster_df[roster_df['age'] <= 25])
+            metrics['veteran_players'] = len(roster_df[roster_df['age'] >= 30])
+        
+        # Games played analysis (durability)
+        if 'games_played' in roster_df.columns:
+            metrics['avg_games_played'] = roster_df['games_played'].mean()
+            metrics['durable_players'] = len(roster_df[roster_df['games_played'] >= 70])
+            metrics['injury_prone_players'] = len(roster_df[roster_df['games_played'] < 50])
+        
+        # Usage and efficiency analysis
+        if 'usage_rate' in roster_df.columns:
+            metrics['avg_usage_rate'] = roster_df['usage_rate'].mean()
+            metrics['high_usage_players'] = len(roster_df[roster_df['usage_rate'] > 0.25])
+        
+        if 'true_shooting_pct' in roster_df.columns:
+            metrics['avg_true_shooting'] = roster_df['true_shooting_pct'].mean()
+            metrics['efficient_players'] = len(roster_df[roster_df['true_shooting_pct'] > 0.55])
+        
+        # Team chemistry indicators
+        if 'team' in roster_df.columns:
+            nba_teams = roster_df['team'].value_counts()
+            metrics['nba_team_diversity'] = len(nba_teams)
+            metrics['max_players_same_team'] = nba_teams.max() if len(nba_teams) > 0 else 0
+        
+        # Z-score distribution analysis
+        z_score_std = roster_df['total_z_score'].std()
+        metrics['z_score_consistency'] = 'High' if z_score_std < 3 else 'Medium' if z_score_std < 6 else 'Low'
+        metrics['elite_players'] = len(roster_df[roster_df['total_z_score'] > 8])
+        metrics['solid_contributors'] = len(roster_df[(roster_df['total_z_score'] >= 3) & (roster_df['total_z_score'] <= 8)])
+        metrics['depth_players'] = len(roster_df[roster_df['total_z_score'] < 3])
+        
+        return metrics
+    
+    def _calculate_team_projection(self, category_analysis: Dict[str, Any], 
+                                  punt_analysis: Dict[str, Any], 
+                                  construction_warnings: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate overall team projection and grade."""
+        
+        # Base score from category performance - much more conservative scoring
+        category_score = 0
+        strong_categories = 0
+        weak_categories = 0
+        
+        for cat_data in category_analysis.values():
+            if cat_data['status'] == 'strong':
+                category_score += 8   # Further reduced from 12
+                strong_categories += 1
+            elif cat_data['status'] == 'average':
+                category_score += 3   # Further reduced from 6
+            else:  # weak
+                category_score += 0   # No points for weak categories
+                weak_categories += 1
+        
+        # Punt strategy bonus - more conservative
+        punt_bonus = 0
+        punt_confidence = punt_analysis.get('strategy_confidence', 'none')
+        if punt_confidence == 'high':
+            punt_bonus = 6    # Further reduced from 8
+        elif punt_confidence == 'medium':
+            punt_bonus = 3    # Further reduced from 4
+        
+        # Construction penalty - more significant impact
+        construction_penalty = 0
+        risk_level = construction_warnings.get('risk_level', 'none')
+        if risk_level == 'high':
+            construction_penalty = 30  # Increased from 25
+        elif risk_level == 'medium':
+            construction_penalty = 20  # Increased from 15
+        elif risk_level == 'low':
+            construction_penalty = 10  # Increased from 8
+        
+        # Additional penalties for poor team balance
+        if weak_categories >= 6:  # More than half categories weak
+            construction_penalty += 15  # Increased penalty
+        elif weak_categories >= 4:  # Many weak categories
+            construction_penalty += 8   # Increased penalty
+        
+        # Bonus for strong teams (but more conservative)
+        strong_team_bonus = 0
+        if strong_categories >= 7:  # Need majority + 1 to be truly strong
+            strong_team_bonus = 10
+        elif strong_categories >= 5:  # Many strong
+            strong_team_bonus = 5
+        elif strong_categories >= 3:  # Some strong
+            strong_team_bonus = 2
+        
+        # Calculate final score (0-100) with more realistic expectations
+        base_score = 35  # Further reduced base score
+        final_score = max(0, min(100, base_score + category_score + punt_bonus + strong_team_bonus - construction_penalty))
+        
+        # Much more realistic letter grade thresholds
+        if final_score >= 90:
+            grade = 'A+'
+        elif final_score >= 85:
+            grade = 'A'
+        elif final_score >= 80:
+            grade = 'A-'
+        elif final_score >= 75:
+            grade = 'B+'
+        elif final_score >= 70:
+            grade = 'B'
+        elif final_score >= 65:
+            grade = 'B-'
+        elif final_score >= 60:
+            grade = 'C+'
+        elif final_score >= 55:
+            grade = 'C'
+        elif final_score >= 50:
+            grade = 'C-'
+        elif final_score >= 45:
+            grade = 'D+'
+        elif final_score >= 40:
+            grade = 'D'
+        elif final_score >= 35:
+            grade = 'D-'
+        else:
+            grade = 'F'
+        
+        # More realistic projection summary
+        if final_score >= 85:
+            outlook = 'Championship Contender'
+        elif final_score >= 75:
+            outlook = 'Playoff Contender'
+        elif final_score >= 65:
+            outlook = 'Competitive Team'
+        elif final_score >= 55:
+            outlook = 'Average Team'
+        elif final_score >= 45:
+            outlook = 'Developing Team'
+        else:
+            outlook = 'Rebuilding Team'
+        
+        return {
+            'final_score': final_score,
+            'grade': grade,
+            'outlook': outlook,
+            'strong_categories': strong_categories,
+            'weak_categories': weak_categories,
+            'category_score': category_score,
+            'punt_bonus': punt_bonus,
+            'construction_penalty': construction_penalty,
+            'strong_team_bonus': strong_team_bonus,
+            'base_score': base_score
+        }
+    
+    def _generate_league_insights(self, team_analyses: Dict[int, Dict], user_team_id: int) -> Dict[str, Any]:
+        """Generate league-wide insights and comparisons."""
+        
+        if not team_analyses:
+            return {}
+        
+        # Calculate league averages
+        total_scores = [analysis['team_stats']['total_z_score'] for analysis in team_analyses.values()]
+        avg_scores = [analysis['team_stats']['avg_z_score'] for analysis in team_analyses.values()]
+        projection_scores = [analysis['team_projection']['final_score'] for analysis in team_analyses.values()]
+        
+        league_avg_total = sum(total_scores) / len(total_scores)
+        league_avg_player = sum(avg_scores) / len(avg_scores)
+        league_avg_projection = sum(projection_scores) / len(projection_scores)
+        
+        # Find league leaders
+        best_team_id = max(team_analyses.keys(), key=lambda x: team_analyses[x]['team_projection']['final_score'])
+        worst_team_id = min(team_analyses.keys(), key=lambda x: team_analyses[x]['team_projection']['final_score'])
+        
+        # User team ranking
+        user_projection = team_analyses.get(user_team_id, {}).get('team_projection', {}).get('final_score', 0)
+        user_rank = sum(1 for analysis in team_analyses.values() 
+                       if analysis['team_projection']['final_score'] > user_projection) + 1
+        
+        # Category dominance analysis
+        category_leaders = {}
+        for category in self.category_analyzer.CATEGORIES.keys():
+            best_team = max(team_analyses.keys(), 
+                          key=lambda x: team_analyses[x]['category_analysis'][category]['team_total'])
+            category_leaders[category] = {
+                'team_id': best_team,
+                'total': team_analyses[best_team]['category_analysis'][category]['team_total'],
+                'category_name': team_analyses[best_team]['category_analysis'][category]['name']
+            }
+        
+        return {
+            'league_averages': {
+                'total_z_score': league_avg_total,
+                'avg_z_score_per_player': league_avg_player,
+                'projection_score': league_avg_projection
+            },
+            'league_leaders': {
+                'best_team': best_team_id,
+                'worst_team': worst_team_id,
+                'best_score': team_analyses[best_team_id]['team_projection']['final_score'],
+                'worst_score': team_analyses[worst_team_id]['team_projection']['final_score']
+            },
+            'user_standing': {
+                'rank': user_rank,
+                'total_teams': len(team_analyses),
+                'percentile': (len(team_analyses) - user_rank + 1) / len(team_analyses) * 100
+            },
+            'category_leaders': category_leaders
+        }
+    
+    def _calculate_competitive_balance(self, team_analyses: Dict[int, Dict]) -> Dict[str, Any]:
+        """Calculate competitive balance metrics for the league."""
+        
+        if len(team_analyses) < 2:
+            return {'balance_score': 100, 'competitiveness': 'High'}
+        
+        projection_scores = [analysis['team_projection']['final_score'] for analysis in team_analyses.values()]
+        
+        # Calculate standard deviation of projection scores
+        mean_score = sum(projection_scores) / len(projection_scores)
+        variance = sum((score - mean_score) ** 2 for score in projection_scores) / len(projection_scores)
+        std_dev = variance ** 0.5
+        
+        # Calculate balance score (lower std dev = higher balance)
+        # Scale: 0-100 where 100 is perfectly balanced
+        balance_score = max(0, 100 - (std_dev * 2))
+        
+        # Determine competitiveness level
+        if balance_score >= 80:
+            competitiveness = 'Very High'
+        elif balance_score >= 65:
+            competitiveness = 'High'
+        elif balance_score >= 50:
+            competitiveness = 'Medium'
+        elif balance_score >= 35:
+            competitiveness = 'Low'
+        else:
+            competitiveness = 'Very Low'
+        
+        # Calculate score spread
+        score_spread = max(projection_scores) - min(projection_scores)
+        
+        return {
+            'balance_score': balance_score,
+            'competitiveness': competitiveness,
+            'score_spread': score_spread,
+            'std_deviation': std_dev,
+            'mean_score': mean_score
+        }
+    
+    def _generate_strategic_insights(self, team_analyses: Dict[int, Dict], user_team_id: int) -> Dict[str, Any]:
+        """Generate strategic insights and recommendations."""
+        
+        insights = {
+            'draft_trends': [],
+            'strategic_observations': [],
+            'user_recommendations': []
+        }
+        
+        if not team_analyses:
+            return insights
+        
+        # Analyze draft trends - only include legitimate punt strategies
+        punt_strategies = {}
+        for team_id, analysis in team_analyses.items():
+            punt_analysis = analysis.get('punt_analysis', {})
+            punt_confidence = punt_analysis.get('strategy_confidence', 'none')
+            
+            # Only count teams with meaningful punt strategies
+            if punt_confidence in ['high', 'medium']:
+                punt_cats = punt_analysis.get('punt_categories', [])
+                for punt_cat in punt_cats:
+                    if punt_cat.get('confidence') in ['high', 'medium']:
+                        cat_name = punt_cat.get('short', 'Unknown')
+                        punt_strategies[cat_name] = punt_strategies.get(cat_name, 0) + 1
+        
+        # Most punted categories (only if multiple teams are punting)
+        if punt_strategies:
+            most_punted = max(punt_strategies.items(), key=lambda x: x[1])
+            if most_punted[1] >= 2:  # At least 2 teams punting
+                insights['draft_trends'].append(f"Most punted category: {most_punted[0]} ({most_punted[1]} teams)")
+        
+        # Position scarcity analysis (more realistic)
+        all_rosters = []
+        for analysis in team_analyses.values():
+            if 'roster_df' in analysis:
+                all_rosters.append(analysis['roster_df'])
+        
+        if all_rosters:
+            combined_df = pd.concat(all_rosters, ignore_index=True)
+            
+            # Map actual position values to simplified categories for analysis
+            position_mapping = {
+                'Guard': 'Guard',
+                'Point Guard': 'Guard',
+                'Shooting Guard': 'Guard', 
+                'Forward': 'Forward',
+                'Small Forward': 'Forward',
+                'Power Forward': 'Forward',
+                'Center': 'Center',
+                'Forward-Center': 'Center',  # Count as centers for scarcity
+                'Center-Forward': 'Center',  # Count as centers for scarcity
+                'Guard-Forward': 'Forward'   # Count as forwards
+            }
+            
+            position_counts = {}
+            for pos_string in combined_df['position']:
+                if pd.notna(pos_string):
+                    mapped_pos = position_mapping.get(pos_string, pos_string)
+                    position_counts[mapped_pos] = position_counts.get(mapped_pos, 0) + 1
+            
+            if position_counts:
+                # Find positions that are significantly under-drafted
+                total_players = sum(position_counts.values())
+                avg_per_position = total_players / 3  # 3 main categories: Guard, Forward, Center
+                
+                underrepresented = []
+                for pos in ['Guard', 'Forward', 'Center']:
+                    count = position_counts.get(pos, 0)
+                    if count < avg_per_position * 0.6:  # 40% below average
+                        underrepresented.append((pos, count))
+                
+                if underrepresented:
+                    least_drafted = min(underrepresented, key=lambda x: x[1])
+                    insights['draft_trends'].append(f"Underrepresented position: {least_drafted[0]} ({least_drafted[1]} players)")
+        
+        # Strategic observations with realistic thresholds
+        high_scoring_teams = sum(1 for analysis in team_analyses.values() 
+                               if analysis['team_projection']['final_score'] >= 75)  # More realistic threshold
+        
+        strong_contenders = sum(1 for analysis in team_analyses.values() 
+                              if analysis['team_projection']['outlook'] in ['Championship Contender', 'Playoff Contender'])
+        
+        total_teams = len(team_analyses)
+        
+        if strong_contenders >= total_teams * 0.5:
+            insights['strategic_observations'].append(
+                f"Highly competitive league: {strong_contenders}/{total_teams} teams are strong contenders"
+            )
+        elif strong_contenders >= total_teams * 0.3:
+            insights['strategic_observations'].append(
+                f"Balanced league: {strong_contenders}/{total_teams} teams are competitive"
+            )
+        else:
+            insights['strategic_observations'].append(
+                f"Top-heavy league: Only {strong_contenders}/{total_teams} teams are strong contenders"
+            )
+        
+        # Add grade distribution insight
+        a_tier_teams = sum(1 for analysis in team_analyses.values() 
+                          if analysis['team_projection']['grade'].startswith('A'))
+        
+        if a_tier_teams >= total_teams * 0.4:
+            insights['strategic_observations'].append(
+                f"Strong draft class: {a_tier_teams}/{total_teams} teams earned A-tier grades"
+            )
+        elif a_tier_teams <= total_teams * 0.15:
+            insights['strategic_observations'].append(
+                f"Challenging draft: Only {a_tier_teams}/{total_teams} teams earned A-tier grades"
+            )
+        
+        # User-specific recommendations with more nuanced analysis
+        if user_team_id in team_analyses:
+            user_analysis = team_analyses[user_team_id]
+            user_score = user_analysis['team_projection']['final_score']
+            user_grade = user_analysis['team_projection']['grade']
+            user_outlook = user_analysis['team_projection']['outlook']
+            
+            # Primary recommendation based on grade and outlook
+            if user_score >= 80:
+                insights['user_recommendations'].append(f"Excellent draft! Your team is a {user_outlook.lower()}.")
+            elif user_score >= 70:
+                insights['user_recommendations'].append(f"Strong draft! Your {user_outlook.lower()} has good potential.")
+            elif user_score >= 60:
+                insights['user_recommendations'].append(f"Solid foundation. Focus on waiver wire to improve from {user_outlook.lower()}.")
+            elif user_score >= 50:
+                insights['user_recommendations'].append(f"Average draft. Look for breakout players and strategic trades.")
+            else:
+                insights['user_recommendations'].append(f"Challenging draft. Consider aggressive waiver moves and trades.")
+            
+            # Category-specific advice (only for meaningful weaknesses)
+            user_category_analysis = user_analysis.get('category_analysis', {})
+            weak_cats = []
+            for cat, data in user_category_analysis.items():
+                if data['status'] == 'weak' and data.get('rank'):
+                    # Only suggest if team is in bottom third
+                    total_teams_in_cat = data.get('total_teams', 1)
+                    if data['rank'] >= total_teams_in_cat * 0.67:
+                        weak_cats.append(cat)
+            
+            # Filter out punt categories from recommendations
+            punt_analysis = user_analysis.get('punt_analysis', {})
+            punt_categories = [p['category'] for p in punt_analysis.get('punt_categories', [])]
+            meaningful_weak_cats = [cat for cat in weak_cats if cat not in punt_categories]
+            
+            if meaningful_weak_cats:
+                cat_names = [user_category_analysis[cat]['short'] for cat in meaningful_weak_cats[:2]]
+                insights['user_recommendations'].append(f"Priority targets: Players strong in {', '.join(cat_names)}")
+            
+            # Punt strategy advice
+            punt_confidence = punt_analysis.get('strategy_confidence', 'none')
+            if punt_confidence == 'high':
+                punt_cats = [p['short'] for p in punt_analysis.get('punt_categories', [])]
+                if punt_cats:
+                    insights['user_recommendations'].append(f"Continue punting {'/'.join(punt_cats[:2])} - strategy is working well")
+        
+        return insights
+    
+    def _get_empty_team_analysis(self, team_id: int) -> Dict[str, Any]:
+        """Return empty analysis for teams with no players."""
+        return {
+            'team_stats': {
+                'team_id': team_id,
+                'roster_size': 0,
+                'total_z_score': 0,
+                'avg_z_score': 0
+            },
+            'category_analysis': {},
+            'position_analysis': {'position_counts': {}, 'balance_score': 0},
+            'punt_analysis': {'punt_categories': [], 'strategy_confidence': 'none'},
+            'construction_warnings': {'warnings': [], 'risk_level': 'none'},
+            'advanced_metrics': {},
+            'team_projection': {'final_score': 0, 'grade': 'F', 'outlook': 'No Players'}
+        } 
