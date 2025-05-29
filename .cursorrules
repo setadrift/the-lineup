@@ -1,62 +1,106 @@
 {
   "project_name": "The Lineup",
-  "project_description": "The Lineup is a modular fantasy basketball draft assistant tool. It is built using Python (FastAPI) and PostgreSQL (Supabase) and supports single-user mock drafting. The MVP focuses on Yahoo 9-cat league logic and uses z-score-based stat analysis. The goal is to provide a real-time, user-friendly alternative to tools like Basketball Monster.",
+  "project_description": "The Lineup is a professional fantasy basketball draft assistant platform. Built with FastAPI (backend) and Next.js (frontend), it supports multi-user leagues, real-time drafting, advanced analytics, and subscription-based access. The platform focuses on Yahoo 9-cat league logic with z-score-based statistical analysis.",
   "tech_stack": {
-    "backend": ["Python", "FastAPI", "SQLAlchemy", "Alembic", "PostgreSQL (Supabase)"],
-    "frontend": ["React (Next.js)", "Vercel (planned)"],
-    "tasks": ["Pandas", "NumPy", "Celery", "Redis"],
-    "data": ["NBA Stats API (2023-24 season)", "player_stats", "player_game_stats", "team_schedule", "player_features"]
+    "backend": ["Python", "FastAPI", "SQLAlchemy", "Alembic", "PostgreSQL", "Redis", "Celery"],
+    "frontend": ["TypeScript", "Next.js", "React", "Tailwind CSS", "ShadCN/UI"],
+    "auth": ["Auth0", "JWT"],
+    "payments": ["Stripe"],
+    "deployment": ["Docker", "Vercel (frontend)", "Render/Fly.io (backend)"],
+    "database": ["PostgreSQL (Supabase)", "Redis (caching/sessions)"],
+    "data_processing": ["Pandas", "NumPy", "NBA Stats API"],
+    "testing": ["pytest", "httpx", "Jest", "React Testing Library"]
   },
-  "design_principles": [
-    "Modular file structure under app/",
-    "Database-first development with SQLAlchemy + Alembic",
-    "One small, testable ETL or function per script",
-    "Code should be readable, efficient, and well-documented",
-    "LLM prompts should reference the .cursorrules context whenever possible"
-  ],
-  "file_structure": {
-    "app/db": "DB connection logic",
-    "app/models": "SQLAlchemy models",
-    "app/nba": "ETL + data ingestion scripts",
-    "app/tasks": "feature engineering, modeling, and future draft logic",
-    "alembic/": "database migrations"
+  "architecture": {
+    "backend/": "FastAPI application with modular structure",
+    "frontend/": "Next.js application with TypeScript",
+    "legacy_streamlit/": "Archived MVP for reference only",
+    "docs/": "API documentation and development guides",
+    "app/db/": "Database models and connection logic",
+    "app/nba/": "Data ingestion and NBA API integration",
+    "app/core/": "Business logic, analytics, and draft algorithms",
+    "app/auth/": "Authentication and user management",
+    "app/api/": "API routes and endpoints"
   },
   "naming_conventions": {
-    "tables": "snake_case (e.g., player_stats, team_schedule)",
-    "models": "PascalCase (e.g., PlayerStats)",
-    "scripts": "verb_noun.py or clear intent-based naming",
+    "backend_files": "snake_case (e.g., user_service.py, draft_analytics.py)",
+    "frontend_files": "kebab-case for components, camelCase for functions",
+    "api_endpoints": "kebab-case with versioning (e.g., /api/v1/draft-rooms)",
+    "database_tables": "snake_case (e.g., user_accounts, draft_sessions)",
+    "models": "PascalCase (e.g., UserAccount, DraftSession)",
     "seasons": "format as '2023-24'"
   },
+  "development_principles": [
+    "API-first development with OpenAPI/Swagger documentation",
+    "Type safety with TypeScript (frontend) and Pydantic (backend)",
+    "Modular architecture with clear separation of concerns",
+    "Authentication and authorization on all user endpoints",
+    "Comprehensive error handling and validation",
+    "Performance optimization with caching and database indexing",
+    "Responsive design with mobile-first approach",
+    "Automated testing for critical business logic",
+    "Production-ready logging and monitoring"
+  ],
+  "business_logic_priorities": [
+    "Multi-user league support with real-time features",
+    "Subscription-based access with Stripe integration",
+    "Advanced draft analytics and AI recommendations",
+    "Real-time draft rooms with WebSocket support",
+    "User dashboard with league management",
+    "Historical performance tracking and insights",
+    "Mobile-responsive draft interface",
+    "Social features (league chat, trash talk, etc.)"
+  ],
   "llm_guidance": {
     "code_generation": [
-      "Prefer isolated files over monoliths",
-      "Avoid hardcoding paths; use dynamic imports based on project_root",
-      "Validate DB session handling and error recovery",
-      "Avoid duplicating logic across ETL scripts",
-      "Assume all code will be deployed eventually; follow production-grade standards"
+      "Use FastAPI best practices with dependency injection",
+      "Implement proper async/await patterns for database operations",
+      "Follow RESTful API design principles with proper HTTP status codes",
+      "Use Pydantic models for request/response validation",
+      "Implement proper error handling with custom exception classes",
+      "Use SQLAlchemy with async support for database operations",
+      "Follow Next.js 13+ app router patterns",
+      "Use React Server Components where appropriate",
+      "Implement proper TypeScript types for all API interactions"
+    ],
+    "security_practices": [
+      "Validate all user inputs with Pydantic schemas",
+      "Implement proper JWT token handling and refresh logic",
+      "Use environment variables for all secrets and configuration",
+      "Implement rate limiting on API endpoints",
+      "Follow OWASP security guidelines for web applications",
+      "Sanitize all database queries to prevent injection attacks",
+      "Implement proper CORS configuration for production"
     ],
     "file_organization": [
-      "NEVER create standalone demo files or separate README files for features",
-      "NEVER create test files in the root directory - use existing test structure",
-      "NEVER create debug scripts in the root directory",
-      "ALWAYS integrate new features into existing files when possible",
-      "ALWAYS ask before creating new files - modify existing ones first",
-      "Keep the root directory clean - only essential project files",
-      "Use inline documentation instead of separate documentation files"
+      "Keep legacy Streamlit code in legacy_streamlit/ for reference only",
+      "Never modify or extend legacy Streamlit components",
+      "Organize backend code by feature modules (auth, drafts, analytics, etc.)",
+      "Use Next.js app router structure for frontend organization",
+      "Separate API logic from business logic in backend",
+      "Create reusable UI components in frontend/components/",
+      "Use TypeScript interfaces for all data structures",
+      "Maintain clear separation between backend and frontend concerns"
     ],
-    "feature_integration": [
-      "New UI features should be added to existing components, not new files",
-      "Extend existing pages rather than creating new demo pages",
-      "Add functionality to existing routers rather than creating new ones",
-      "Integrate tests into existing test files when possible",
-      "Always check if functionality already exists before creating new code"
+    "migration_guidelines": [
+      "Extract business logic from legacy Streamlit components",
+      "Adapt algorithms and calculations for API endpoint usage",
+      "Redesign UI flows for modern web application patterns",
+      "Implement proper database schema for multi-user support",
+      "Add authentication and authorization to all user features",
+      "Convert single-user flows to multi-user league experiences",
+      "Implement real-time features where beneficial",
+      "Add proper error handling and user feedback mechanisms"
     ],
-    "project_cleanliness": [
-      "Maintain a clean root directory with only essential files",
-      "Remove temporary files after development",
-      "Consolidate related functionality into existing modules",
-      "Avoid creating multiple files for a single feature",
-      "Keep documentation concise and inline with code"
+    "performance_considerations": [
+      "Use Redis for caching frequently accessed data",
+      "Implement database connection pooling",
+      "Use async operations for all I/O bound tasks",
+      "Optimize database queries with proper indexing",
+      "Implement pagination for large data sets",
+      "Use Next.js image optimization for player photos",
+      "Implement lazy loading for non-critical components",
+      "Use service workers for offline functionality where appropriate"
     ]
   }
 }
