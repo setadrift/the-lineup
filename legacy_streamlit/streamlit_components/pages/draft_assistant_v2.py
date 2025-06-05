@@ -3,18 +3,12 @@ The Lineup - Draft Assistant (Modular Version)
 Clean, maintainable draft assistant with intelligent pick suggestions
 """
 
-import os
-import sys
 import pandas as pd
 import streamlit as st
 
-# Setup path
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../"))
-sys.path.insert(0, project_root)
-
 # Import our modular components
-from app.frontend.streamlit.utils.styling import apply_main_styling
-from app.frontend.streamlit.utils.database import (
+from legacy_streamlit.streamlit_components.utils.styling import apply_main_styling
+from legacy_streamlit.streamlit_components.utils.database import (
     get_player_pool, 
     get_detailed_player_stats, 
     get_player_by_ids,
@@ -22,7 +16,7 @@ from app.frontend.streamlit.utils.database import (
     validate_database_connection,
     get_database_engine
 )
-from app.frontend.streamlit.components.ui_components import (
+from legacy_streamlit.streamlit_components.components.ui_components import (
     setup_metric_cards,
     render_header,
     render_sidebar_config,
@@ -41,7 +35,7 @@ from app.frontend.streamlit.components.ui_components import (
     render_draft_save_notification,
     render_draft_recap_analytics
 )
-from app.frontend.streamlit.components.draft_logic import (
+from legacy_streamlit.streamlit_components.components.draft_logic import (
     DraftState,
     PickSuggestionEngine,
     AIOpponent,

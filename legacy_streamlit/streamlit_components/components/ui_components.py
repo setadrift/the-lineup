@@ -98,7 +98,7 @@ def render_saved_drafts_section():
     """
     Render saved drafts management section.
     """
-    from app.frontend.streamlit.utils.persistence import DraftPersistence, restore_draft_state_to_session
+    from legacy_streamlit.streamlit_components.utils.persistence import DraftPersistence, restore_draft_state_to_session
     
     saved_drafts = DraftPersistence.get_saved_drafts()
     
@@ -167,7 +167,7 @@ def render_auto_save_controls():
     """
     Render auto-save controls in sidebar.
     """
-    from app.frontend.streamlit.utils.persistence import DraftPersistence
+    from legacy_streamlit.streamlit_components.utils.persistence import DraftPersistence
     
     with st.sidebar:
         st.markdown("---")
@@ -189,7 +189,7 @@ def render_auto_save_controls():
                     draft_state = st.session_state.get("draft_state")
                     
                     if draft_state and config:
-                        from app.frontend.streamlit.utils.persistence import DraftPersistence
+                        from legacy_streamlit.streamlit_components.utils.persistence import DraftPersistence
                         draft_id = DraftPersistence.save_draft_state(draft_state, config)
                         if draft_id:
                             st.success(f"Draft saved! ID: {draft_id[:8]}")
@@ -210,7 +210,7 @@ def render_draft_save_notification(draft_state, config: Dict[str, Any]):
         draft_state: Current draft state
         config: Draft configuration
     """
-    from app.frontend.streamlit.utils.persistence import DraftPersistence
+    from legacy_streamlit.streamlit_components.utils.persistence import DraftPersistence
     
     # Auto-save if enabled
     if DraftPersistence.auto_save_enabled():

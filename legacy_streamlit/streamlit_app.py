@@ -16,11 +16,11 @@ st.set_page_config(
 )
 
 # Add the project root to the Python path
-project_root = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, project_root)
 
 # Import and run the main Streamlit app
-from app.frontend.streamlit.pages.draft_assistant_v2 import main
+from legacy_streamlit.streamlit_components.pages.draft_assistant_v2 import main
 
 if __name__ == "__main__":
     main()
