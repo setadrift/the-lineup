@@ -6,20 +6,18 @@ Centralized database operations for the draft assistant
 import os
 import pandas as pd
 import streamlit as st
-from dotenv import load_dotenv
-from st_supabase_connection import SupabaseConnection
 from typing import List, Optional
 
 
 @st.cache_resource
 def get_database_engine():
     """
-    Get database engine using Streamlit's connection.
+    Get database engine using Streamlit's SQL connection.
     
     Returns:
         SQLAlchemy engine instance
     """
-    conn = st.connection("supabase", type=SupabaseConnection)
+    conn = st.connection("postgres", type="sql")
     return conn.engine
 
 
