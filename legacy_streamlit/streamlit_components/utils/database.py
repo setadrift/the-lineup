@@ -6,19 +6,27 @@ Centralized database operations for the draft assistant
 import os
 import pandas as pd
 import streamlit as st
+from dotenv import load_dotenv
+from sqlalchemy import create_engine
 from typing import List, Optional
 
 
 @st.cache_resource
 def get_database_engine():
     """
-    Get database engine using Streamlit's SQL connection.
+    Get database engine with connection pooling.
     
     Returns:
         SQLAlchemy engine instance
     """
-    conn = st.connection("postgres", type="sql")
-    return conn.engine
+    load_dotenv()
+    DATABASE_URL = os.getenv("DATABASE_URL")
+    
+    if not DATABASE_URL:
+        st.error("Database URL not found in environment variables. Please ensure it's set.")
+        st.stop()
+    
+    return create_engine(DATABASE_URL)
 
 
 @st.cache_data(ttl=300)  # Cache for 5 minutes
