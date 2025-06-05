@@ -11,21 +11,16 @@ from sqlalchemy import create_engine
 from typing import List, Optional
 
 
+@st.cache_resource
 def get_database_engine():
     """
-    Get database engine with connection pooling.
+    Get database engine using Streamlit's connection.
     
     Returns:
         SQLAlchemy engine instance
     """
-    load_dotenv()
-    DATABASE_URL = os.getenv("DATABASE_URL")
-    
-    if not DATABASE_URL:
-        st.error("Database URL not found in environment variables")
-        st.stop()
-    
-    return create_engine(DATABASE_URL)
+    conn = st.connection("supabase")
+    return conn.engine
 
 
 @st.cache_data(ttl=300)  # Cache for 5 minutes
@@ -202,21 +197,4 @@ def get_available_seasons() -> List[str]:
         return result['season'].tolist()
     except Exception as e:
         st.error(f"Error loading seasons: {e}")
-        return ["2023-24"]  # Fallback
-
-
-def validate_database_connection() -> bool:
-    """
-    Validate that the database connection is working.
-    
-    Returns:
-        True if connection is successful, False otherwise
-    """
-    try:
-        engine = get_database_engine()
-        # Simple query to test connection
-        pd.read_sql("SELECT 1", engine)
-        return True
-    except Exception as e:
-        st.error(f"Database connection failed: {e}")
-        return False 
+        return ["2023-24"]  # Fallback 

@@ -13,7 +13,6 @@ from legacy_streamlit.streamlit_components.utils.database import (
     get_detailed_player_stats, 
     get_player_by_ids,
     get_available_seasons,
-    validate_database_connection,
     get_database_engine
 )
 from legacy_streamlit.streamlit_components.components.ui_components import (
@@ -65,11 +64,6 @@ def main():
     # Apply styling
     apply_main_styling()
     setup_metric_cards()
-    
-    # Validate database connection
-    if not validate_database_connection():
-        st.error("Unable to connect to database. Please check your connection.")
-        st.stop()
     
     # Show onboarding for new users
     onboarding_completed = render_onboarding_modal()
