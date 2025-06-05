@@ -7,7 +7,7 @@ import os
 import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
+from st_supabase_connection import SupabaseConnection
 from typing import List, Optional
 
 
@@ -19,7 +19,7 @@ def get_database_engine():
     Returns:
         SQLAlchemy engine instance
     """
-    conn = st.connection("supabase")
+    conn = st.connection("supabase", type=SupabaseConnection)
     return conn.engine
 
 
