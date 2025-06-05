@@ -10,6 +10,10 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, asdict
 
+from legacy_streamlit.streamlit_components.components.draft_logic import DraftState
+
+# Constants
+SAVE_STATE_DIR_NAME = "draft_saves"
 
 @dataclass
 class DraftSaveState:
@@ -237,9 +241,6 @@ def restore_draft_state_to_session(save_state: DraftSaveState):
         save_state: DraftSaveState object to restore
     """
     try:
-        # Import here to avoid circular imports
-        from app.frontend.streamlit.components.draft_logic import DraftState
-        
         # Create new DraftState object
         draft_state = DraftState(
             save_state.num_teams, 

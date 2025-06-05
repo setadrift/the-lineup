@@ -765,7 +765,7 @@ def render_available_players(available_players: pd.DataFrame, player_pool_df: pd
                 with tab3:
                     # Historical trends tab - import and use our new component
                     try:
-                        from app.frontend.streamlit.components.draft_historical_trends import render_draft_historical_trends_tab
+                        from legacy_streamlit.streamlit_components.components.draft_historical_trends import render_draft_historical_trends_tab
                         render_draft_historical_trends_tab(top_available)
                     except ImportError as e:
                         st.error(f"Historical trends component not available: {e}")
@@ -780,7 +780,7 @@ def render_available_players(available_players: pd.DataFrame, player_pool_df: pd
                 with tab4:
                     # Player comparison tab - import and use our new component
                     try:
-                        from app.frontend.streamlit.components.player_comparison import render_player_comparison_tool
+                        from legacy_streamlit.streamlit_components.components.player_comparison import render_player_comparison_tool
                         render_player_comparison_tool(available_players, player_pool_df, season, engine)
                     except ImportError as e:
                         st.error(f"Player comparison component not available: {e}")

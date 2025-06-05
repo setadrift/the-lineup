@@ -3,22 +3,16 @@ The Lineup - Historical Trends Demo
 Demo page showcasing the historical stat trends and sparklines feature
 """
 
-import sys
-import os
 import streamlit as st
 import pandas as pd
 import requests
 from typing import Dict, Any
 
-# Set up project path
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../.."))
-sys.path.insert(0, project_root)
-
-from app.frontend.streamlit.components.historical_trends import (
+from legacy_streamlit.streamlit_components.components.historical_trends import (
     render_player_historical_trends,
     render_trend_summary_widget
 )
-from app.frontend.streamlit.components.ui_components import render_header
+from legacy_streamlit.streamlit_components.components.ui_components import render_header
 
 # Page configuration
 st.set_page_config(
